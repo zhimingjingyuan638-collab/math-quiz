@@ -81,7 +81,26 @@
       transition: transform 0.22s, box-shadow 0.22s, border-color 0.22s;
       animation: cardIn 0.45s ease-out both;
       cursor: pointer; display: flex; flex-direction: column; gap: 14px;
+      position: relative; overflow: hidden;
     }
+
+    /* ── 難易度 ── */
+    .card-difficulty { display: flex; gap: 1px; margin-left: auto; }
+    .card-difficulty .star { font-size: 1rem; line-height: 1; }
+    .card-difficulty .star.filled  { color: #f59e0b; }
+    .card-difficulty .star.empty   { color: #d1d5db; }
+
+    /* ── クリアバッジ ── */
+    .clear-badge {
+      position: absolute; bottom: 14px; right: 14px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; border-radius: 99px;
+      padding: 4px 10px; font-size: 0.72rem; font-weight: 900;
+      display: flex; align-items: center; gap: 3px;
+      box-shadow: 0 2px 8px rgba(245,158,11,0.45);
+      animation: badgeIn 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes badgeIn { from{opacity:0;transform:scale(0.7);} to{opacity:1;transform:scale(1);} }
     .unit-card:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 16px 40px rgba(99,102,241,0.2); border-color: #818cf8; }
     @keyframes cardIn { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
     .card-top { display: flex; align-items: center; gap: 12px; }
@@ -351,6 +370,7 @@
         {
           id: "seifuno-kaho-2su",
           title: "正負の数の加法",
+          difficulty: 1,
           grade: "中学1年",
           chapter: "正負の数",
           chapterOrder: 1,
@@ -374,6 +394,7 @@
         {
           id: "seifuno-kaho-shosu-bunsu",
           title: "正負の数 ― 加法（小数・分数）",
+          difficulty: 2,
           grade: "中学1年",
           chapter: "正負の数",
           chapterOrder: 1,
@@ -397,6 +418,7 @@
         {
           id: "seifuno-genpo",
           title: "正負の数 ― 減法",
+          difficulty: 1,
           grade: "中学1年",
           chapter: "正負の数",
           chapterOrder: 1,
@@ -420,6 +442,7 @@
         {
           id: "seifuno-kaho-genpo",
           title: "正負の数 ― 加法・減法",
+          difficulty: 2,
           grade: "中学1年",
           chapter: "正負の数",
           chapterOrder: 1,
@@ -443,6 +466,7 @@
         {
           id: "seifuno-kakko-hazushi",
           title: "正負の数 ― （　）をはずして計算",
+          difficulty: 2,
           grade: "中学1年",
           chapter: "正負の数",
           chapterOrder: 1,
@@ -532,6 +556,26 @@
       return `${m}:${String(s).padStart(2,'0')}.${d}`;
     }
 
+    /* ── クリア記録 ── */
+    function getClearCount(unitId) {
+      try { return parseInt(localStorage.getItem(`mq_clear_${unitId}`) || '0'); }
+      catch(e) { return 0; }
+    }
+    function incrementClearCount(unitId) {
+      try {
+        const count = getClearCount(unitId) + 1;
+        localStorage.setItem(`mq_clear_${unitId}`, count);
+        return count;
+      } catch(e) { return 0; }
+    }
+
+    /* ── 難易度 ── */
+    function renderStars(level) {
+      return Array.from({length: 3}, (_, i) =>
+        `<span class="star ${i < level ? 'filled' : 'empty'}">${i < level ? '★' : '☆'}</span>`
+      ).join('');
+    }
+
     /* ── ホーム画面 ── */
     function buildStats() {
       const totalUnits = QUIZ_DATA.units.length;
@@ -572,11 +616,20 @@
           : '';
         const cards = chapter.units.map(u => {
           const delay = (cardIdx++ * 0.07).toFixed(2);
+          const clearCount = getClearCount(u.id);
+          const clearBadge = clearCount > 0
+            ? `<div class="clear-badge">🏅 ${clearCount}回クリア</div>`
+            : '';
           return `
             <div class="unit-card" style="animation-delay:${delay}s" onclick="selectUnit('${u.id}')">
-              <div class="card-top"><div class="card-icon">${u.icon}</div><span class="card-badge">${u.grade} · ${u.subject}</span></div>
+              <div class="card-top">
+                <div class="card-icon">${u.icon}</div>
+                <span class="card-badge">${u.grade} · ${u.subject}</span>
+                <div class="card-difficulty">${renderStars(u.difficulty || 1)}</div>
+              </div>
               <div><div class="card-title">${u.title}</div><div class="card-count">${u.questions.length}問</div></div>
               <button class="start-btn">スタート →</button>
+              ${clearBadge}
             </div>`;
         }).join('');
         return `<div class="chapter-group">${heading}<div class="grid">${cards}</div></div>`;
@@ -705,6 +758,7 @@
 
     function showResult() {
       if (isTimeAttack) stopTimer();
+      incrementClearCount(currentUnitId);
 
       document.getElementById('quiz-area').style.display        = 'none';
       document.getElementById('result-screen').style.display    = 'block';
