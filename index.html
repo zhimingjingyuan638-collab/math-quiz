@@ -255,7 +255,6 @@
       <h1>数学 問題集</h1>
       <p>単元を選んで、くり返し練習しよう ✨</p>
     </header>
-    <div class="stats-bar" id="stats-bar"></div>
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn active" data-grade="all" onclick="filterGrade('all')">すべて</button>
     </div>
@@ -364,7 +363,7 @@
       units: [
         {
           id: "seifuno-kaho-2su",
-          title: "正負の数の加法",
+          title: "正負の数 ― 加法",
           difficulty: 1,
           grade: "中学1年",
           chapter: "正負の数",
@@ -572,17 +571,6 @@
     }
 
     /* ── ホーム画面 ── */
-    function buildStats() {
-      const totalUnits = QUIZ_DATA.units.length;
-      const totalQ     = QUIZ_DATA.units.reduce((s,u) => s+u.questions.length, 0);
-      const grades     = new Set(QUIZ_DATA.units.map(u=>u.grade)).size;
-      document.getElementById('stats-bar').innerHTML = `
-        <div class="stat"><div class="stat-num">${totalUnits}</div><div class="stat-label">単元</div></div>
-        <div class="stat"><div class="stat-num">${totalQ}</div><div class="stat-label">問題数</div></div>
-        <div class="stat"><div class="stat-num">${grades}</div><div class="stat-label">学年</div></div>
-      `;
-    }
-
     function renderCards(grade) {
       const container = document.getElementById('chapter-container');
       const empty     = document.getElementById('empty');
@@ -811,7 +799,6 @@
     }
 
     /* ── 初期化 ── */
-    buildStats();
     buildFilter();
     renderCards('all');
   </script>
