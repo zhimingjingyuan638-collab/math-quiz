@@ -234,6 +234,9 @@
     .btn-retry { flex: 1; padding: 15px; border-radius: 14px; border: none; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 900; background: linear-gradient(135deg,#6d28d9,#4f46e5,#0ea5e9); color: #fff; box-shadow: 0 4px 16px rgba(79,70,229,0.35); transition: opacity 0.18s, transform 0.14s; }
     .btn-home  { flex: 1; padding: 15px; border-radius: 14px; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 900; background: #f4f6ff; color: #4f46e5; border: 2px solid #c7d2fe; transition: opacity 0.18s, transform 0.14s; }
     .btn-retry:hover, .btn-home:hover { opacity: 0.86; transform: scale(1.02); }
+    .btn-review { width: 100%; padding: 15px; border-radius: 14px; border: none; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 900; background: linear-gradient(135deg,#059669,#10b981); color: #fff; box-shadow: 0 4px 16px rgba(16,185,129,0.35); transition: opacity 0.18s, transform 0.14s; }
+    .btn-review:hover { opacity: 0.86; transform: scale(1.02); }
+    .result-row-btns { display: flex; gap: 10px; }
 
     /* ── 分数表示 ── */
     .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 1px; font-size: 0.82em; line-height: 1.15; }
@@ -353,7 +356,7 @@
           <!-- 通常モード結果 -->
           <div id="normal-result">
             <span class="result-emoji" id="res-emoji"></span>
-            <div class="result-title">クイズ完了！</div>
+            <div class="result-title" id="result-title-text">クイズ完了！</div>
             <div class="result-msg" id="res-msg"></div>
             <div class="score-grid">
               <div class="score-box"><div class="score-num pct" id="res-pct">0%</div><div class="score-label">正答率</div></div>
@@ -380,8 +383,11 @@
           </div>
 
           <div class="result-btns">
-            <button class="btn-retry" id="btn-retry" onclick="retryMode()">もう一度 🔄</button>
-            <button class="btn-home" onclick="goHome()">ホームへ 🏠</button>
+            <button class="btn-review hidden" id="btn-review" onclick="startReview()">間違えた問題を復習 📝</button>
+            <div class="result-row-btns">
+              <button class="btn-retry" id="btn-retry" onclick="retryMode()">もう一度 🔄</button>
+              <button class="btn-home" onclick="goHome()">ホームへ 🏠</button>
+            </div>
           </div>
         </div>
       </div>
@@ -715,6 +721,7 @@
 
     /* ── クイズロジック ── */
     let unit, questions, current, correctCount, answered, hadMistake, streakCount;
+    let wrongQuestions = [], isReviewMode = false;
     const LABELS  = ['A','B','C','D'];
     const shuffle = a => [...a].sort(()=>Math.random()-0.5);
 
@@ -722,7 +729,7 @@
       isTimeAttack = timeAttack;
       unit = QUIZ_DATA.units.find(u=>u.id===currentUnitId);
       questions = shuffle(unit.questions);
-      current = 0; correctCount = 0; streakCount = 0;
+      current = 0; correctCount = 0; streakCount = 0; wrongQuestions = []; isReviewMode = false;
 
       document.getElementById('mode-screen').style.display = 'none';
       document.getElementById('quiz-area').style.display   = 'block';
@@ -795,6 +802,7 @@
       if (isCorrect) {
         answered = true;
         if (!hadMistake) { correctCount++; streakCount++; showStreakToast(streakCount); }
+        else { wrongQuestions.push(questions[current]); }
         document.querySelectorAll('.choice-btn').forEach((b,i)=>{
           b.disabled=true;
           if (i===correctIdx) b.classList.add('correct');
@@ -821,11 +829,19 @@
 
     function showResult() {
       if (isTimeAttack) stopTimer();
-      if (correctCount === questions.length) incrementClearCount(currentUnitId);
+      if (!isReviewMode && correctCount === questions.length) incrementClearCount(currentUnitId);
 
       document.getElementById('quiz-area').style.display        = 'none';
       document.getElementById('result-screen').style.display    = 'block';
       document.getElementById('progress-fill').style.width      = '100%';
+
+      const reviewBtn = document.getElementById('btn-review');
+      if (wrongQuestions.length > 0) {
+        reviewBtn.classList.remove('hidden');
+        reviewBtn.textContent = `間違えた問題を復習 📝（${wrongQuestions.length}問）`;
+      } else {
+        reviewBtn.classList.add('hidden');
+      }
 
       const total = questions.length;
       const pct   = Math.round(correctCount/total*100);
@@ -834,8 +850,11 @@
         document.getElementById('normal-result').style.display = 'block';
         document.getElementById('ta-result').style.display     = 'none';
 
+        document.getElementById('result-title-text').textContent = isReviewMode ? '復習完了！' : 'クイズ完了！';
         const emoji = pct>=90?'🏆':pct>=70?'🌟':pct>=50?'📚':'💪';
-        const msg   = pct>=90?'完璧！素晴らしい！':pct>=70?'よくできました！':pct>=50?'もう少し！復習しよう。':'繰り返し挑戦しよう！';
+        const msg   = isReviewMode
+          ? (pct===100 ? '全問正解！完璧な復習！🎉' : `${correctCount}/${total}問 正解。もう一度チャレンジ！`)
+          : (pct>=90?'完璧！素晴らしい！':pct>=70?'よくできました！':pct>=50?'もう少し！復習しよう。':'繰り返し挑戦しよう！');
         document.getElementById('res-emoji').textContent   = emoji;
         document.getElementById('res-msg').textContent     = msg;
         document.getElementById('res-correct').textContent = correctCount;
@@ -884,7 +903,24 @@
       }
     }
 
+    function startReview() {
+      isTimeAttack = false; isReviewMode = true;
+      questions = shuffle(wrongQuestions);
+      wrongQuestions = [];
+      current = 0; correctCount = 0; streakCount = 0;
+
+      document.getElementById('quiz-header-title').textContent = unit.title + '（復習）';
+      document.getElementById('quiz-card').classList.remove('timeattack-mode');
+      document.getElementById('result-screen').style.display = 'none';
+      document.getElementById('quiz-area').style.display     = 'block';
+      document.getElementById('progress-fill').style.width   = '0%';
+      document.getElementById('header-count').textContent    = '';
+      document.getElementById('btn-retry').textContent       = 'もう一度 🔄';
+      showQuestion();
+    }
+
     function retryMode() {
+      isReviewMode = false;
       document.getElementById('result-screen').style.display    = 'none';
       document.getElementById('timer-display').textContent      = '⏱ 0:00.0';
       document.getElementById('timer-display').classList.remove('running');
