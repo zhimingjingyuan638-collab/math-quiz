@@ -239,12 +239,43 @@
     .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 1px; font-size: 0.82em; line-height: 1.15; }
     .frac-num { border-bottom: 1.5px solid currentColor; padding: 0 3px 1px; text-align: center; min-width: 1em; }
     .frac-den { padding: 1px 3px 0; text-align: center; min-width: 1em; }
+
+    /* ── 自己ベスト ── */
+    .card-best { font-size: 0.78rem; color: #d97706; font-weight: 700; margin-top: 1px; }
+
+    /* ── ストリークトースト ── */
+    #streak-toast {
+      position: fixed; top: 72px; left: 50%; transform: translateX(-50%) translateY(-12px);
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; border-radius: 99px; padding: 10px 26px;
+      font-size: 1rem; font-weight: 900;
+      box-shadow: 0 4px 20px rgba(79,70,229,0.5);
+      z-index: 400; opacity: 0; pointer-events: none;
+      transition: opacity 0.22s, transform 0.22s;
+    }
+    #streak-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── カウントダウン ── */
+    #countdown-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(79,70,229,0.93);
+      display: none; align-items: center; justify-content: center;
+    }
+    #countdown-overlay.active { display: flex; }
+    #countdown-num {
+      font-size: 7rem; font-weight: 900; color: #fff;
+      text-shadow: 0 0 40px rgba(255,255,255,0.4);
+      animation: countPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes countPop { from{transform:scale(1.8);opacity:0;} to{transform:scale(1);opacity:1;} }
   </style>
 </head>
 <body>
 
   <canvas id="confetti-canvas"></canvas>
   <div class="math-bg" id="math-bg"></div>
+  <div id="streak-toast"></div>
+  <div id="countdown-overlay"><div id="countdown-num"></div></div>
 
   <!-- ══════════════════════════════════════════
        ホーム画面
@@ -341,6 +372,7 @@
               <div class="time-result-value" id="ta-time-value">-</div>
               <div class="time-result-sub" id="ta-time-sub"></div>
             </div>
+            <div id="ta-best-box" style="display:none; margin-bottom:16px; text-align:center; font-size:0.88rem;"></div>
             <div class="score-grid-2">
               <div class="score-box"><div class="score-num ok" id="ta-correct">0</div><div class="score-label">正解数</div></div>
               <div class="score-box"><div class="score-num ng" id="ta-wrong">0</div><div class="score-label">不正解数</div></div>
@@ -563,6 +595,14 @@
       } catch(e) { return 0; }
     }
 
+    function getBestTime(unitId) {
+      try { const v = localStorage.getItem(`mq_best_${unitId}`); return v ? parseInt(v) : null; }
+      catch(e) { return null; }
+    }
+    function saveBestTime(unitId, ms) {
+      try { localStorage.setItem(`mq_best_${unitId}`, ms); } catch(e) {}
+    }
+
     /* ── 難易度 ── */
     function renderStars(level) {
       return Array.from({length: 3}, (_, i) =>
@@ -603,13 +643,15 @@
           const clearBadge = clearCount > 0
             ? `<div class="clear-badge">🏅 ${clearCount}回クリア</div>`
             : '';
+          const best = getBestTime(u.id);
+          const bestStr = best !== null ? `<div class="card-best">⏱ ベスト ${formatTime(best)}</div>` : '';
           return `
             <div class="unit-card" style="animation-delay:${delay}s" onclick="selectUnit('${u.id}')">
               <div class="card-top">
                 <div class="card-icon">${u.icon}</div>
                 <span class="card-badge">${u.grade}</span>
               </div>
-              <div><div class="card-title">${u.title}</div><div class="card-count">${u.questions.length}問</div></div>
+              <div><div class="card-title">${u.title}</div><div class="card-count">${u.questions.length}問</div>${bestStr}</div>
               <button class="start-btn">スタート →</button>
               ${clearBadge}
             </div>`;
@@ -656,27 +698,66 @@
       if (timerInterval) stopTimer();
       document.getElementById('quiz-screen-wrapper').style.display = 'none';
       document.getElementById('home-screen').style.display = 'block';
+      const activeGrade = document.querySelector('.filter-btn.active')?.dataset.grade || 'all';
+      renderCards(activeGrade);
+    }
+
+    /* ── ストリーク ── */
+    function showStreakToast(n) {
+      const msgs = {3:'🔥 3連続正解！', 5:'⚡ 5連続！すごい！', 7:'💥 7連続！止まらない！', 10:'🌟 10連続！完璧！'};
+      if (!msgs[n]) return;
+      const toast = document.getElementById('streak-toast');
+      toast.textContent = msgs[n];
+      toast.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toast.classList.remove('show'), 2200);
     }
 
     /* ── クイズロジック ── */
-    let unit, questions, current, correctCount, answered, hadMistake;
+    let unit, questions, current, correctCount, answered, hadMistake, streakCount;
     const LABELS  = ['A','B','C','D'];
     const shuffle = a => [...a].sort(()=>Math.random()-0.5);
 
-    function startQuiz(timeAttack) {
+    async function startQuiz(timeAttack) {
       isTimeAttack = timeAttack;
       unit = QUIZ_DATA.units.find(u=>u.id===currentUnitId);
       questions = shuffle(unit.questions);
-      current = 0; correctCount = 0;
+      current = 0; correctCount = 0; streakCount = 0;
 
       document.getElementById('mode-screen').style.display = 'none';
       document.getElementById('quiz-area').style.display   = 'block';
 
       if (isTimeAttack) {
         document.getElementById('quiz-card').classList.add('timeattack-mode');
+        await showCountdown();
         startTimer();
       }
       showQuestion();
+    }
+
+    function showCountdown() {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('countdown-overlay');
+        const numEl   = document.getElementById('countdown-num');
+        overlay.classList.add('active');
+        const steps = ['3','2','1','GO!'];
+        let i = 0;
+        const tick = () => {
+          numEl.style.animation = 'none';
+          requestAnimationFrame(() => {
+            numEl.style.animation = 'countPop 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+            numEl.textContent = steps[i];
+            numEl.style.color = steps[i] === 'GO!' ? '#fcd34d' : '#fff';
+            i++;
+            if (i < steps.length) {
+              setTimeout(tick, 850);
+            } else {
+              setTimeout(() => { overlay.classList.remove('active'); resolve(); }, 550);
+            }
+          });
+        };
+        tick();
+      });
     }
 
     function showQuestion() {
@@ -713,7 +794,7 @@
       const isCorrect = idx === correctIdx;
       if (isCorrect) {
         answered = true;
-        if (!hadMistake) correctCount++;
+        if (!hadMistake) { correctCount++; streakCount++; showStreakToast(streakCount); }
         document.querySelectorAll('.choice-btn').forEach((b,i)=>{
           b.disabled=true;
           if (i===correctIdx) b.classList.add('correct');
@@ -723,7 +804,7 @@
         document.getElementById('hint-box').classList.remove('show');
         setTimeout(()=>document.getElementById('next-btn').classList.add('show'), isTimeAttack ? 150 : 380);
       } else {
-        hadMistake = true;
+        hadMistake = true; streakCount = 0;
         btn.disabled = true;
         btn.classList.add('wrong');
         if (!isTimeAttack) {
@@ -773,10 +854,25 @@
         document.getElementById('normal-result').style.display = 'none';
         document.getElementById('ta-result').style.display     = 'block';
 
-        const timeStr = formatTime(elapsedMs);
+        const timeStr  = formatTime(elapsedMs);
+        const prevBest = getBestTime(currentUnitId);
+        const isNewBest = prevBest === null || elapsedMs < prevBest;
+        if (isNewBest) saveBestTime(currentUnitId, elapsedMs);
+
         document.getElementById('ta-time-value').textContent = timeStr;
         document.getElementById('ta-correct').textContent    = correctCount;
         document.getElementById('ta-wrong').textContent      = total - correctCount;
+
+        const bestBox = document.getElementById('ta-best-box');
+        if (prevBest !== null && isNewBest) {
+          bestBox.innerHTML = `🎉 新記録！（前回ベスト：${formatTime(prevBest)}）`;
+          bestBox.style.cssText = 'display:block; color:#d97706; font-weight:900; margin-bottom:16px; text-align:center; font-size:0.88rem;';
+        } else if (!isNewBest) {
+          bestBox.innerHTML = `🏅 ベスト：${formatTime(prevBest)}`;
+          bestBox.style.cssText = 'display:block; color:#6b7280; font-weight:700; margin-bottom:16px; text-align:center; font-size:0.88rem;';
+        } else {
+          bestBox.style.display = 'none';
+        }
 
         const msg = pct===100 ? '全問正解！最高のタイムだ！🎉' : pct>=70 ? 'よくできました！次はもっと速く！' : 'まずは全問正解を目指そう！';
         document.getElementById('ta-msg').textContent = msg;
