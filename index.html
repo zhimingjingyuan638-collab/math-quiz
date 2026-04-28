@@ -248,7 +248,7 @@
   <!-- ══════════════════════════════════════════
        クイズ画面（モード選択・問題・結果）
   ══════════════════════════════════════════ -->
-  <div id="quiz-screen-wrapper" style="display:none; display:flex; flex-direction:column; min-height:100vh;">
+  <div id="quiz-screen-wrapper" style="display:none; flex-direction:column; min-height:100vh;">
     <header class="quiz-header">
       <button class="back-btn" onclick="goHome()">← ホーム</button>
       <div class="quiz-header-title" id="quiz-header-title"></div>
@@ -545,7 +545,8 @@
       currentUnitId = id;
       const unit = QUIZ_DATA.units.find(u=>u.id===id);
       document.getElementById('home-screen').style.display = 'none';
-      document.getElementById('quiz-screen-wrapper').style.display = 'flex';
+      const wrapper = document.getElementById('quiz-screen-wrapper');
+      wrapper.style.display = 'flex';
       document.getElementById('quiz-header-title').textContent = unit.title;
       document.getElementById('mode-unit-title').textContent   = unit.title;
       document.getElementById('mode-screen').style.display     = 'block';
