@@ -407,6 +407,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 1,
+          quizCount: 10,
           subject: "数学",
           icon: "➕",
           color: "blue",
@@ -441,6 +442,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 2,
+          quizCount: 10,
           subject: "数学",
           icon: "➗",
           color: "blue",
@@ -475,6 +477,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 3,
+          quizCount: 10,
           subject: "数学",
           icon: "➖",
           color: "indigo",
@@ -509,6 +512,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 4,
+          quizCount: 10,
           subject: "数学",
           icon: "➕",
           color: "indigo",
@@ -543,6 +547,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 5,
+          quizCount: 10,
           subject: "数学",
           icon: "🔢",
           color: "violet",
@@ -577,6 +582,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 6,
+          quizCount: 10,
           subject: "数学",
           icon: "🧮",
           color: "violet",
@@ -611,6 +617,7 @@
           chapter: "正負の数",
           chapterOrder: 1,
           order: 7,
+          quizCount: 10,
           subject: "数学",
           icon: "✖️",
           color: "violet",
@@ -846,7 +853,7 @@
     async function startQuiz(timeAttack) {
       isTimeAttack = timeAttack;
       unit = QUIZ_DATA.units.find(u=>u.id===currentUnitId);
-      questions = shuffle(unit.questions).slice(0, 10);
+      questions = shuffle(unit.questions).slice(0, unit.quizCount || 10);
       current = 0; correctCount = 0; streakCount = 0; wrongQuestions = []; isReviewMode = false;
 
       document.getElementById('mode-screen').style.display = 'none';
