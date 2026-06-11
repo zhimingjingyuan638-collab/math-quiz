@@ -418,6 +418,67 @@
     .spot-choice.wrong { background: #fee2e2; border-color: #ef4444; animation: shake 0.38s ease-out; }
     .spot-choice.wrong .sc-label { background: #ef4444; color: #fff; }
     .spot-choice.dimmed { opacity: 0.35; }
+
+    /* ═══════════════════════════════════
+       出題数選択
+    ═══════════════════════════════════ */
+    .count-select { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .count-label { font-size: 0.85rem; font-weight: 700; color: #6b7280; }
+    .count-btn {
+      padding: 7px 16px; border-radius: 99px;
+      border: 2px solid #c7d2fe; background: #fff; color: #4f46e5;
+      font-family: inherit; font-weight: 800; font-size: 0.85rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .count-btn:hover { border-color: #6366f1; background: #eef2ff; }
+    .count-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; box-shadow: 0 3px 10px rgba(79,70,229,0.35); }
+
+    /* ── ゴースト（自己ベスト比較） ── */
+    .ghost-display {
+      display: none;
+      background: rgba(0,0,0,0.25); border-radius: 99px; padding: 5px 12px;
+      font-size: 0.8rem; font-weight: 900; color: #fff;
+      white-space: nowrap; font-variant-numeric: tabular-nums;
+    }
+    .ghost-display.ahead  { color: #6ee7b7; }
+    .ghost-display.behind { color: #fca5a5; }
+
+    /* ── 連続日数チップ ── */
+    .streak-chip {
+      display: none; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 99px;
+      font-weight: 900; font-size: 0.88rem;
+      background: linear-gradient(135deg, #fb923c, #ef4444); color: #fff;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+    }
+
+    /* ── シェアボタン ── */
+    .btn-share {
+      width: 100%; padding: 14px; border-radius: 14px; cursor: pointer;
+      font-family: inherit; font-size: 0.92rem; font-weight: 900;
+      background: #fff; color: #0284c7; border: 2px solid #7dd3fc;
+      transition: all 0.16s;
+    }
+    .btn-share:hover { background: #f0f9ff; transform: scale(1.01); }
+
+    /* ═══════════════════════════════════
+       バッジ図鑑
+    ═══════════════════════════════════ */
+    .badge-summary {
+      text-align: center; font-weight: 900; color: #d97706;
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+      border: 2px solid #fcd34d; border-radius: 14px;
+      padding: 12px; margin-bottom: 16px; font-size: 1rem;
+    }
+    .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .badge-item {
+      border: 2px solid #fcd34d; border-radius: 14px; padding: 16px 10px;
+      text-align: center; background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    }
+    .badge-item.locked { border-color: #e0e7ff; background: #f4f6ff; filter: grayscale(1); opacity: 0.55; }
+    .badge-icon { font-size: 2.1rem; }
+    .badge-name { font-weight: 900; font-size: 0.85rem; margin-top: 6px; color: #1e1b4b; }
+    .badge-desc { font-size: 0.7rem; color: #6b7280; margin-top: 3px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -437,7 +498,11 @@
       <p>単元を選んで、くり返し練習しよう ✨</p>
     </header>
     <div class="home-tools">
+      <button class="tool-btn" id="daily-btn" onclick="startDailyChallenge()">📅 今日のチャレンジ</button>
+      <button class="tool-btn" id="nigate-btn" onclick="startNigateReview()">📝 ニガテ復習</button>
+      <button class="tool-btn" onclick="openBadgeBook()">🏅 バッジ図鑑</button>
       <button class="tool-btn" onclick="openHistoryDashboard()">📊 履歴を見る</button>
+      <span class="streak-chip" id="streak-chip"></span>
     </div>
     <div class="category-bar" id="category-bar">
       <button class="cat-btn active calc" data-category="calc" onclick="filterCategory('calc')"><span class="cat-emoji">📐</span>計算問題</button>
@@ -466,6 +531,19 @@
   </div>
 
   <!-- ══════════════════════════════════════════
+       バッジ図鑑（モーダル）
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="badge-modal" onclick="closeBadgeBook(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <div class="modal-title">🏅 バッジ図鑑</div>
+        <button class="modal-close" onclick="closeBadgeBook()">×</button>
+      </div>
+      <div id="badge-body"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
        クイズ画面（モード選択・問題・結果）
   ══════════════════════════════════════════ -->
   <div id="quiz-screen-wrapper" style="display:none; flex-direction:column; min-height:100vh;">
@@ -473,6 +551,7 @@
       <button class="back-btn" onclick="goHome()">← ホーム</button>
       <div class="quiz-header-title" id="quiz-header-title"></div>
       <div class="header-right">
+        <div class="ghost-display" id="ghost-display"></div>
         <div class="timer-display" id="timer-display">⏱ 0:00.0</div>
         <div class="header-count" id="header-count"></div>
       </div>
@@ -488,6 +567,10 @@
         <div class="mode-card">
           <div class="mode-title" id="mode-unit-title"></div>
           <div class="mode-sub">モードを選んでください</div>
+          <div class="count-select" id="count-select">
+            <span class="count-label">出題数：</span>
+            <span id="count-btns"></span>
+          </div>
           <div class="mode-btns">
             <button class="mode-btn normal" onclick="startQuiz(false)">
               <span class="mode-icon">📖</span>
@@ -552,6 +635,7 @@
 
           <div class="result-btns">
             <button class="btn-review hidden" id="btn-review" onclick="startReview()">間違えた問題を復習 📝</button>
+            <button class="btn-share" id="btn-share" onclick="copyShareText()">結果をコピー 📋</button>
             <div class="result-row-btns">
               <button class="btn-retry" id="btn-retry" onclick="retryMode()">もう一度 🔄</button>
               <button class="btn-home" onclick="goHome()">ホームへ 🏠</button>
@@ -846,13 +930,409 @@
           ]
         },
         {
+          id: "seifuno-division",
+          title: "正負の数 ― 除法",
+          difficulty: 2,
+          grade: "中学1年",
+          chapter: "正負の数",
+          chapterOrder: 1,
+          order: 9,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "➗",
+          color: "violet",
+          questions: [
+            { q: "(+12) ÷ (+4) = ?", correct: "3", choices: ["3", "−3", "8", "−8"], hint: "同じ符号どうしの商は正になります。12 ÷ 4 = ?" },
+            { q: "(−15) ÷ (+3) = ?", correct: "−5", choices: ["−5", "5", "−12", "12"], hint: "異なる符号どうしの商は負になります。15 ÷ 3 = 5 なので答えは？" },
+            { q: "(+18) ÷ (−6) = ?", correct: "−3", choices: ["−3", "3", "−12", "12"], hint: "異なる符号どうしの商は負になります。18 ÷ 6 = 3 なので答えは？" },
+            { q: "(−24) ÷ (−8) = ?", correct: "3", choices: ["3", "−3", "−16", "16"], hint: "同じ符号どうし（負 ÷ 負）の商は正になります。24 ÷ 8 = ?" },
+            { q: "(+20) ÷ (+5) = ?", correct: "4", choices: ["4", "−4", "15", "−15"], hint: "同じ符号どうしの商は正になります。20 ÷ 5 = ?" },
+            { q: "(−36) ÷ (+9) = ?", correct: "−4", choices: ["−4", "4", "−27", "27"], hint: "異なる符号どうしの商は負になります。36 ÷ 9 = 4 なので答えは？" },
+            { q: "(+42) ÷ (−7) = ?", correct: "−6", choices: ["−6", "6", "−35", "35"], hint: "異なる符号どうしの商は負になります。42 ÷ 7 = 6 なので答えは？" },
+            { q: "(−63) ÷ (−9) = ?", correct: "7", choices: ["7", "−7", "−54", "54"], hint: "同じ符号どうし（負 ÷ 負）の商は正になります。63 ÷ 9 = ?" },
+            { q: "0 ÷ (−5) = ?", correct: "0", choices: ["0", "−5", "5", "−1"], hint: "0をどんな数でわっても、答えは0になります。" },
+            { q: "(+28) ÷ (−4) = ?", correct: "−7", choices: ["−7", "7", "−24", "24"], hint: "異なる符号どうしの商は負になります。28 ÷ 4 = 7 なので答えは？" },
+            { q: "(−40) ÷ (+8) = ?", correct: "−5", choices: ["−5", "5", "−32", "32"], hint: "異なる符号どうしの商は負になります。40 ÷ 8 = 5 なので答えは？" },
+            { q: "(−54) ÷ (−6) = ?", correct: "9", choices: ["9", "−9", "−48", "48"], hint: "同じ符号どうし（負 ÷ 負）の商は正になります。54 ÷ 6 = ?" },
+            { q: "(+16) ÷ (+2) = ?", correct: "8", choices: ["8", "−8", "14", "−14"], hint: "同じ符号どうしの商は正になります。16 ÷ 2 = ?" },
+            { q: "(−21) ÷ (+7) = ?", correct: "−3", choices: ["−3", "3", "−14", "14"], hint: "異なる符号どうしの商は負になります。21 ÷ 7 = 3 なので答えは？" },
+            { q: "(+30) ÷ (−5) = ?", correct: "−6", choices: ["−6", "6", "−25", "25"], hint: "異なる符号どうしの商は負になります。30 ÷ 5 = 6 なので答えは？" },
+            { q: "(−48) ÷ (−12) = ?", correct: "4", choices: ["4", "−4", "−36", "36"], hint: "同じ符号どうし（負 ÷ 負）の商は正になります。48 ÷ 12 = ?" },
+            { q: "(+9) ÷ (−9) = ?", correct: "−1", choices: ["−1", "1", "0", "−18"], hint: "異なる符号どうしの商は負になります。9 ÷ 9 = 1 なので答えは？" },
+            { q: "(−14) ÷ (+2) = ?", correct: "−7", choices: ["−7", "7", "−12", "12"], hint: "異なる符号どうしの商は負になります。14 ÷ 2 = 7 なので答えは？" },
+            { q: "(+25) ÷ (−5) = ?", correct: "−5", choices: ["−5", "5", "−20", "20"], hint: "異なる符号どうしの商は負になります。25 ÷ 5 = 5 なので答えは？" },
+            { q: "(−72) ÷ (−8) = ?", correct: "9", choices: ["9", "−9", "−64", "64"], hint: "同じ符号どうし（負 ÷ 負）の商は正になります。72 ÷ 8 = ?" }
+          ]
+        },
+        {
+          id: "seifuno-shisoku-kongo",
+          title: "正負の数 ― 四則混合",
+          difficulty: 3,
+          grade: "中学1年",
+          chapter: "正負の数",
+          chapterOrder: 1,
+          order: 10,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "🎯",
+          color: "violet",
+          questions: [
+            { q: "3＋2×(−4) = ?", correct: "−5", choices: ["−5", "5", "−20", "20"], hint: "かけ算を先に計算します。2×(−4) = −8。3 − 8 = ?" },
+            { q: "(−6)＋12÷(−3) = ?", correct: "−10", choices: ["−10", "−2", "2", "10"], hint: "わり算を先に計算します。12÷(−3) = −4。−6 − 4 = ?" },
+            { q: "5×(−2)−4 = ?", correct: "−14", choices: ["−14", "−6", "6", "14"], hint: "かけ算を先に計算します。5×(−2) = −10。−10 − 4 = ?" },
+            { q: "(−3)² = ?", correct: "9", choices: ["9", "−9", "6", "−6"], hint: "(−3)² は (−3)×(−3) のこと。同じ符号どうしの積は正になります。" },
+            { q: "−3² = ?", correct: "−9", choices: ["−9", "9", "−6", "6"], hint: "−3² は 3² に−をつけたものです。3² = 9 なので答えは？" },
+            { q: "(−2)³ = ?", correct: "−8", choices: ["−8", "8", "−6", "6"], hint: "(−2)³ = (−2)×(−2)×(−2)。負の数が3個（奇数個）なので符号は−になります。" },
+            { q: "4−(−2)×3 = ?", correct: "10", choices: ["10", "−2", "2", "−10"], hint: "かけ算を先に計算します。(−2)×3 = −6。4 − (−6) = 4 ＋ 6 = ?" },
+            { q: "(5−8)×4 = ?", correct: "−12", choices: ["−12", "12", "−27", "27"], hint: "カッコの中を先に計算します。5 − 8 = −3。(−3)×4 = ?" },
+            { q: "2×(−3)² = ?", correct: "18", choices: ["18", "−18", "36", "−36"], hint: "累乗を先に計算します。(−3)² = 9。2 × 9 = ?" },
+            { q: "−2×3² = ?", correct: "−18", choices: ["−18", "18", "−36", "36"], hint: "累乗を先に計算します。3² = 9。−2 × 9 = ?" },
+            { q: "10÷(−2)＋7 = ?", correct: "2", choices: ["2", "−2", "12", "−12"], hint: "わり算を先に計算します。10÷(−2) = −5。−5 ＋ 7 = ?" },
+            { q: "(−4)²−10 = ?", correct: "6", choices: ["6", "−6", "26", "−26"], hint: "累乗を先に計算します。(−4)² = 16。16 − 10 = ?" },
+            { q: "8−12÷4 = ?", correct: "5", choices: ["5", "−1", "1", "−5"], hint: "わり算を先に計算します。12÷4 = 3。8 − 3 = ?" },
+            { q: "(−2)×(3−7) = ?", correct: "8", choices: ["8", "−8", "−13", "13"], hint: "カッコの中を先に計算します。3 − 7 = −4。(−2)×(−4) = ?" },
+            { q: "6＋(−3)×(−2) = ?", correct: "12", choices: ["12", "0", "−12", "18"], hint: "かけ算を先に計算します。(−3)×(−2) = ＋6。6 ＋ 6 = ?" },
+            { q: "9÷(−3)×2 = ?", correct: "−6", choices: ["−6", "6", "−18", "18"], hint: "×と÷は左から順に計算します。9÷(−3) = −3。(−3)×2 = ?" },
+            { q: "(−5)²＋(−5) = ?", correct: "20", choices: ["20", "−20", "30", "−30"], hint: "累乗を先に計算します。(−5)² = 25。25 ＋ (−5) = 25 − 5 = ?" },
+            { q: "7−2×(1−4) = ?", correct: "13", choices: ["13", "1", "−1", "−13"], hint: "カッコの中を先に。1 − 4 = −3。2×(−3) = −6。7 − (−6) = ?" },
+            { q: "12÷(−4)−(−2) = ?", correct: "−1", choices: ["−1", "1", "−5", "5"], hint: "わり算を先に計算します。12÷(−4) = −3。−3 − (−2) = −3 ＋ 2 = ?" },
+            { q: "−4²÷8 = ?", correct: "−2", choices: ["−2", "2", "−32", "32"], hint: "−4² は 4² に−をつけたもので −16 になります。−16 ÷ 8 = ?" }
+          ]
+        },
+        {
+          id: "mojishiki-arawashikata",
+          title: "文字と式 ― 文字を使った式の表し方",
+          difficulty: 1,
+          grade: "中学1年",
+          chapter: "文字と式",
+          chapterOrder: 2,
+          order: 1,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "🔤",
+          color: "blue",
+          questions: [
+            { q: "a×3 を、文字式の表し方にしたがって書くと？", correct: "3a", choices: ["3a", "a3", "3×a", "a＋3"], hint: "かけ算の記号 × は省略し、数を文字の前に書きます。" },
+            { q: "b×(−1) を、文字式の表し方にしたがって書くと？", correct: "−b", choices: ["−b", "−1b", "b−1", "b"], hint: "1×文字 の 1 は書きません。−1×b は −b になります。" },
+            { q: "x×x を、文字式の表し方にしたがって書くと？", correct: "x²", choices: ["x²", "2x", "x2", "xx"], hint: "同じ文字のかけ算は累乗の形で書きます。x×x = x² になります。" },
+            { q: "a÷5 を、文字式の表し方にしたがって書くと？", correct: "[[a/5]]", choices: ["[[a/5]]", "[[5/a]]", "5a", "a−5"], hint: "わり算は分数の形で書きます。aが分子、5が分母になります。" },
+            { q: "x×y×7 を、文字式の表し方にしたがって書くと？", correct: "7xy", choices: ["7xy", "xy7", "7＋xy", "x7y"], hint: "数を先頭に書き、文字はアルファベット順に並べます。" },
+            { q: "a×a×a を、文字式の表し方にしたがって書くと？", correct: "a³", choices: ["a³", "3a", "a×3", "a3"], hint: "同じ文字を3回かけているので、累乗で a³ になります。" },
+            { q: "(x＋y)÷3 を、文字式の表し方にしたがって書くと？", correct: "[[x＋y/3]]", choices: ["[[x＋y/3]]", "x＋[[y/3]]", "3(x＋y)", "[[3/x＋y]]"], hint: "わり算は分数の形に。x＋y 全体が分子になります。" },
+            { q: "b×b×2 を、文字式の表し方にしたがって書くと？", correct: "2b²", choices: ["2b²", "(2b)²", "2b", "b²＋2"], hint: "b×b = b²。数の2を前に書いて 2b² になります。" },
+            { q: "x×(−4)＋y を、文字式の表し方にしたがって書くと？", correct: "−4x＋y", choices: ["−4x＋y", "−4(x＋y)", "x−4＋y", "−4xy"], hint: "x×(−4) は −4x になります。＋y はそのまま後ろに書きます。" },
+            { q: "a÷(−3) を、文字式の表し方にしたがって書くと？", correct: "−[[a/3]]", choices: ["−[[a/3]]", "[[3/a]]", "−3a", "a−3"], hint: "わり算は分数の形に。符号の−は分数の前に書きます。" },
+            { q: "1×x を、文字式の表し方にしたがって書くと？", correct: "x", choices: ["x", "1x", "x1", "x＋1"], hint: "1×文字 の 1 は書きません。そのまま x になります。" },
+            { q: "(−1)×a×b を、文字式の表し方にしたがって書くと？", correct: "−ab", choices: ["−ab", "−1ab", "ab−1", "ab"], hint: "−1 の 1 は書きません。−ab になります。" },
+            { q: "x÷y を、文字式の表し方にしたがって書くと？", correct: "[[x/y]]", choices: ["[[x/y]]", "[[y/x]]", "xy", "x−y"], hint: "わり算は分数の形で書きます。xが分子、yが分母になります。" },
+            { q: "a×5−b×2 を、文字式の表し方にしたがって書くと？", correct: "5a−2b", choices: ["5a−2b", "5a＋2b", "3ab", "2b−5a"], hint: "a×5 = 5a、b×2 = 2b。ひき算の記号はそのまま残します。" },
+            { q: "x×0.1 を、文字式の表し方にしたがって書くと？", correct: "0.1x", choices: ["0.1x", "0.1＋x", "x−0.1", "10x"], hint: "小数も数なので文字の前に書きます。0.1x になります。" },
+            { q: "y×y×(−3) を、文字式の表し方にしたがって書くと？", correct: "−3y²", choices: ["−3y²", "(−3y)²", "−6y", "3y²"], hint: "y×y = y²。−3 を前に書いて −3y² になります。" },
+            { q: "a×b÷4 を、文字式の表し方にしたがって書くと？", correct: "[[ab/4]]", choices: ["[[ab/4]]", "[[4/ab]]", "4ab", "ab−4"], hint: "a×b = ab。それを4でわるので、abが分子の分数になります。" },
+            { q: "x＋x＋x を簡単にすると？", correct: "3x", choices: ["3x", "x³", "x＋3", "3＋x"], hint: "xが3個分なので 3×x。かけ算の記号を省略して 3x になります。" },
+            { q: "(a−b)÷6 を、文字式の表し方にしたがって書くと？", correct: "[[a−b/6]]", choices: ["[[a−b/6]]", "a−[[b/6]]", "6(a−b)", "[[6/a−b]]"], hint: "わり算は分数の形に。a−b 全体が分子になります。" },
+            { q: "2×x×x＋5 を、文字式の表し方にしたがって書くと？", correct: "2x²＋5", choices: ["2x²＋5", "(2x)²＋5", "2x＋5", "7x²"], hint: "x×x = x²。2を前に書いて 2x²、＋5 はそのまま残します。" }
+          ]
+        },
+        {
+          id: "mojishiki-1jishiki-keisan",
+          title: "文字と式 ― 1次式の計算",
+          difficulty: 2,
+          grade: "中学1年",
+          chapter: "文字と式",
+          chapterOrder: 2,
+          order: 2,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "📝",
+          color: "blue",
+          questions: [
+            { q: "3x＋5x = ?", correct: "8x", choices: ["8x", "15x", "8x²", "2x"], hint: "文字の部分が同じ項は、係数どうしをたします。3 ＋ 5 = ?" },
+            { q: "7a−2a = ?", correct: "5a", choices: ["5a", "9a", "5", "5a²"], hint: "係数どうしをひきます。7 − 2 = 5 なので 5a になります。" },
+            { q: "4x＋3−2x = ?", correct: "2x＋3", choices: ["2x＋3", "5x", "2x−3", "6x＋3"], hint: "文字の項と数の項を分けて計算します。4x − 2x = 2x になります。" },
+            { q: "2(x＋4) = ?", correct: "2x＋8", choices: ["2x＋8", "2x＋4", "2x＋6", "8x"], hint: "分配法則を使います。2×x ＋ 2×4 = ?" },
+            { q: "−3(2a−5) = ?", correct: "−6a＋15", choices: ["−6a＋15", "−6a−15", "6a−15", "−6a＋5"], hint: "分配法則を使います。−3×2a = −6a、−3×(−5) = ＋15 になります。" },
+            { q: "5x−(2x−3) = ?", correct: "3x＋3", choices: ["3x＋3", "3x−3", "7x−3", "3x"], hint: "カッコをはずすと符号が変わります。5x − 2x ＋ 3 = ?" },
+            { q: "(6x＋9)÷3 = ?", correct: "2x＋3", choices: ["2x＋3", "2x＋9", "6x＋3", "2x−3"], hint: "それぞれの項を3でわります。6x÷3 ＋ 9÷3 = ?" },
+            { q: "2x＋7＋3x−4 = ?", correct: "5x＋3", choices: ["5x＋3", "5x＋11", "6x＋3", "5x−3"], hint: "文字の項：2x＋3x = 5x。数の項：7−4 = 3 になります。" },
+            { q: "−4a＋9a = ?", correct: "5a", choices: ["5a", "−5a", "13a", "−13a"], hint: "係数どうしをたします。−4 ＋ 9 = ?" },
+            { q: "6x−8−6x = ?", correct: "−8", choices: ["−8", "8", "12x−8", "0"], hint: "6x − 6x = 0。残るのは −8 だけになります。" },
+            { q: "3(2x−1)＋4 = ?", correct: "6x＋1", choices: ["6x＋1", "6x−1", "6x＋3", "6x＋7"], hint: "分配法則でカッコをはずすと 6x − 3。−3 ＋ 4 = ?" },
+            { q: "4(a＋2)−3(a−1) = ?", correct: "a＋11", choices: ["a＋11", "a＋5", "7a＋11", "a−11"], hint: "4a ＋ 8 − 3a ＋ 3 になります。−3×(−1) = ＋3 に注意。" },
+            { q: "12x÷(−4) = ?", correct: "−3x", choices: ["−3x", "3x", "−8x", "8x"], hint: "係数を −4 でわります。12 ÷ (−4) = ?" },
+            { q: "(10a−5)÷5 = ?", correct: "2a−1", choices: ["2a−1", "2a−5", "5a−1", "2a＋1"], hint: "それぞれの項を5でわります。10a÷5 − 5÷5 = ?" },
+            { q: "x＋x＋7−3 = ?", correct: "2x＋4", choices: ["2x＋4", "2x−4", "2x＋10", "x＋4"], hint: "x ＋ x = 2x。数の項は 7 − 3 = 4 になります。" },
+            { q: "−(4x−9) = ?", correct: "−4x＋9", choices: ["−4x＋9", "−4x−9", "4x＋9", "4x−9"], hint: "−のついたカッコをはずすと、中の符号がすべて変わります。" },
+            { q: "8a−3＋2a−7 = ?", correct: "10a−10", choices: ["10a−10", "10a＋10", "6a−10", "10a−4"], hint: "文字の項：8a＋2a = 10a。数の項：−3−7 = −10 になります。" },
+            { q: "(8x−6)×[[1/2]] = ?", correct: "4x−3", choices: ["4x−3", "4x−6", "4x＋3", "16x−12"], hint: "それぞれの項に[[1/2]]をかけます。8x×[[1/2]] − 6×[[1/2]] = ?" },
+            { q: "5(x−2)−(3x−4) = ?", correct: "2x−6", choices: ["2x−6", "2x−14", "2x＋6", "8x−14"], hint: "5x − 10 − 3x ＋ 4 になります。文字と数を分けて計算しましょう。" },
+            { q: "9x＋4−(5x＋4) = ?", correct: "4x", choices: ["4x", "4x＋8", "14x＋8", "4x−8"], hint: "カッコをはずすと 9x ＋ 4 − 5x − 4。数の項は0になります。" }
+          ]
+        },
+        {
+          id: "houteishiki-toushiki-seishitsu",
+          title: "方程式 ― 等式の性質",
+          difficulty: 1,
+          grade: "中学1年",
+          chapter: "方程式",
+          chapterOrder: 3,
+          order: 1,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "⚖️",
+          color: "indigo",
+          questions: [
+            { q: "x＋3＝7 を解くと、x = ?", correct: "4", choices: ["4", "10", "−4", "21"], hint: "両辺から3をひきます。x ＝ 7 − 3 = ?" },
+            { q: "x−5＝2 を解くと、x = ?", correct: "7", choices: ["7", "−3", "3", "−7"], hint: "両辺に5をたします。x ＝ 2 ＋ 5 = ?" },
+            { q: "x＋8＝3 を解くと、x = ?", correct: "−5", choices: ["−5", "5", "11", "−11"], hint: "両辺から8をひきます。x ＝ 3 − 8 = ?" },
+            { q: "4x＝20 を解くと、x = ?", correct: "5", choices: ["5", "−5", "16", "80"], hint: "両辺を4でわります。x ＝ 20 ÷ 4 = ?" },
+            { q: "[[x/3]]＝6 を解くと、x = ?", correct: "18", choices: ["18", "2", "9", "3"], hint: "両辺に3をかけます。x ＝ 6 × 3 = ?" },
+            { q: "x−7＝−2 を解くと、x = ?", correct: "5", choices: ["5", "−9", "9", "−5"], hint: "両辺に7をたします。x ＝ −2 ＋ 7 = ?" },
+            { q: "5x＝−30 を解くと、x = ?", correct: "−6", choices: ["−6", "6", "−25", "−35"], hint: "両辺を5でわります。x ＝ −30 ÷ 5 = ?" },
+            { q: "x＋9＝9 を解くと、x = ?", correct: "0", choices: ["0", "18", "9", "−9"], hint: "両辺から9をひきます。x ＝ 9 − 9 = ?" },
+            { q: "[[x/4]]＝−2 を解くと、x = ?", correct: "−8", choices: ["−8", "8", "−6", "2"], hint: "両辺に4をかけます。x ＝ −2 × 4 = ?" },
+            { q: "−3x＝12 を解くと、x = ?", correct: "−4", choices: ["−4", "4", "−15", "15"], hint: "両辺を−3でわります。x ＝ 12 ÷ (−3) = ?" },
+            { q: "x−12＝−4 を解くと、x = ?", correct: "8", choices: ["8", "−16", "16", "−8"], hint: "両辺に12をたします。x ＝ −4 ＋ 12 = ?" },
+            { q: "6x＝3 を解くと、x = ?", correct: "[[1/2]]", choices: ["[[1/2]]", "2", "−[[1/2]]", "18"], hint: "両辺を6でわります。x ＝ [[3/6]] を約分すると？" },
+            { q: "x＋2.5＝4 を解くと、x = ?", correct: "1.5", choices: ["1.5", "6.5", "−1.5", "2.5"], hint: "両辺から2.5をひきます。x ＝ 4 − 2.5 = ?" },
+            { q: "−x＝7 を解くと、x = ?", correct: "−7", choices: ["−7", "7", "0", "1"], hint: "両辺に−1をかけます。x ＝ −7 になります。" },
+            { q: "2x＝−9 を解くと、x = ?", correct: "−[[9/2]]", choices: ["−[[9/2]]", "[[9/2]]", "−18", "−7"], hint: "両辺を2でわります。x ＝ −[[9/2]] になります。" },
+            { q: "x−0.4＝1 を解くと、x = ?", correct: "1.4", choices: ["1.4", "0.6", "−0.6", "−1.4"], hint: "両辺に0.4をたします。x ＝ 1 ＋ 0.4 = ?" },
+            { q: "8x＝0 を解くと、x = ?", correct: "0", choices: ["0", "8", "−8", "1"], hint: "両辺を8でわります。0 ÷ 8 = ?" },
+            { q: "x＋[[1/3]]＝1 を解くと、x = ?", correct: "[[2/3]]", choices: ["[[2/3]]", "[[4/3]]", "[[1/3]]", "1"], hint: "両辺から[[1/3]]をひきます。1 − [[1/3]] = [[3/3]] − [[1/3]] = ?" },
+            { q: "[[x/5]]＝−1 を解くと、x = ?", correct: "−5", choices: ["−5", "5", "−[[1/5]]", "[[1/5]]"], hint: "両辺に5をかけます。x ＝ −1 × 5 = ?" },
+            { q: "7x＝−14 を解くと、x = ?", correct: "−2", choices: ["−2", "2", "−7", "−21"], hint: "両辺を7でわります。x ＝ −14 ÷ 7 = ?" }
+          ]
+        },
+        {
+          id: "houteishiki-1ji-houteishiki",
+          title: "方程式 ― 1次方程式",
+          difficulty: 2,
+          grade: "中学1年",
+          chapter: "方程式",
+          chapterOrder: 3,
+          order: 2,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "🧩",
+          color: "indigo",
+          questions: [
+            { q: "2x＋3＝11 を解くと、x = ?", correct: "4", choices: ["4", "7", "−4", "5"], hint: "＋3を右辺に移項すると 2x ＝ 11 − 3 = 8 になります。x = ?" },
+            { q: "3x−5＝10 を解くと、x = ?", correct: "5", choices: ["5", "−5", "[[5/3]]", "15"], hint: "−5を右辺に移項すると 3x ＝ 10 ＋ 5 = 15 になります。x = ?" },
+            { q: "5x＝2x＋9 を解くと、x = ?", correct: "3", choices: ["3", "−3", "9", "1"], hint: "2xを左辺に移項すると 5x − 2x ＝ 9、3x ＝ 9 になります。x = ?" },
+            { q: "4x−7＝x＋5 を解くと、x = ?", correct: "4", choices: ["4", "−4", "2", "12"], hint: "移項すると 4x − x ＝ 5 ＋ 7、3x ＝ 12 になります。x = ?" },
+            { q: "2(x−3)＝10 を解くと、x = ?", correct: "8", choices: ["8", "2", "−2", "16"], hint: "カッコをはずすと 2x − 6 ＝ 10。2x ＝ 16 になります。x = ?" },
+            { q: "3(x＋2)＝x＋10 を解くと、x = ?", correct: "2", choices: ["2", "−2", "4", "8"], hint: "カッコをはずすと 3x ＋ 6 ＝ x ＋ 10。2x ＝ 4 になります。x = ?" },
+            { q: "7x−4＝3x を解くと、x = ?", correct: "1", choices: ["1", "−1", "2", "4"], hint: "移項すると 7x − 3x ＝ 4、4x ＝ 4 になります。x = ?" },
+            { q: "x＋6＝4x を解くと、x = ?", correct: "2", choices: ["2", "−2", "3", "6"], hint: "移項すると 6 ＝ 4x − x、3x ＝ 6 になります。x = ?" },
+            { q: "5x−8＝2x＋7 を解くと、x = ?", correct: "5", choices: ["5", "−5", "3", "15"], hint: "移項すると 5x − 2x ＝ 7 ＋ 8、3x ＝ 15 になります。x = ?" },
+            { q: "−2x＋5＝11 を解くと、x = ?", correct: "−3", choices: ["−3", "3", "−8", "8"], hint: "＋5を移項すると −2x ＝ 6。両辺を−2でわると x = ?" },
+            { q: "4(x−2)＝2x を解くと、x = ?", correct: "4", choices: ["4", "−4", "2", "8"], hint: "カッコをはずすと 4x − 8 ＝ 2x。2x ＝ 8 になります。x = ?" },
+            { q: "0.3x＝0.2x＋1 を解くと、x = ?", correct: "10", choices: ["10", "1", "−10", "0.1"], hint: "0.2xを移項すると 0.1x ＝ 1 になります。x = ?" },
+            { q: "[[x/2]]−1＝3 を解くと、x = ?", correct: "8", choices: ["8", "2", "4", "−8"], hint: "−1を移項すると [[x/2]] ＝ 4。両辺に2をかけると x = ?" },
+            { q: "[[x/3]]＝[[x/4]]＋1 を解くと、x = ?", correct: "12", choices: ["12", "1", "7", "−12"], hint: "両辺に12をかけると 4x ＝ 3x ＋ 12 になります。x = ?" },
+            { q: "6x＋5＝3x−7 を解くと、x = ?", correct: "−4", choices: ["−4", "4", "−2", "12"], hint: "移項すると 6x − 3x ＝ −7 − 5、3x ＝ −12 になります。x = ?" },
+            { q: "2(3x−1)＝5x＋4 を解くと、x = ?", correct: "6", choices: ["6", "2", "−6", "3"], hint: "カッコをはずすと 6x − 2 ＝ 5x ＋ 4。x ＝ 4 ＋ 2 = ?" },
+            { q: "9−2x＝x を解くと、x = ?", correct: "3", choices: ["3", "−3", "9", "−9"], hint: "−2xを移項すると 9 ＝ x ＋ 2x、3x ＝ 9 になります。x = ?" },
+            { q: "x−3(x−4)＝6 を解くと、x = ?", correct: "3", choices: ["3", "−3", "5", "9"], hint: "カッコをはずすと x − 3x ＋ 12 ＝ 6。−2x ＝ −6 になります。x = ?" },
+            { q: "1.2x−0.4＝0.8 を解くと、x = ?", correct: "1", choices: ["1", "−1", "10", "0.3"], hint: "−0.4を移項すると 1.2x ＝ 1.2 になります。x = ?" },
+            { q: "[[x＋1/2]]＝[[x−1/3]] を解くと、x = ?", correct: "−5", choices: ["−5", "5", "−1", "1"], hint: "両辺に6をかけると 3(x＋1) ＝ 2(x−1)。3x ＋ 3 ＝ 2x − 2 になります。x = ?" }
+          ]
+        },
+        {
+          id: "hirei-hanpirei-shiki",
+          title: "比例と反比例 ― 式を求める",
+          difficulty: 2,
+          grade: "中学1年",
+          chapter: "比例と反比例",
+          chapterOrder: 4,
+          order: 1,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "📈",
+          color: "blue",
+          questions: [
+            { q: "yはxに比例し、x＝2 のとき y＝6。yをxの式で表すと？", correct: "y＝3x", choices: ["y＝3x", "y＝x＋4", "y＝[[6/x]]", "y＝2x"], hint: "比例の式は y＝ax。x＝2、y＝6 を代入すると 6 ＝ 2a になります。a = ?" },
+            { q: "yはxに比例し、x＝3 のとき y＝−12。yをxの式で表すと？", correct: "y＝−4x", choices: ["y＝−4x", "y＝4x", "y＝x−15", "y＝−[[12/x]]"], hint: "y＝ax に代入すると −12 ＝ 3a になります。a = ?" },
+            { q: "yはxに反比例し、x＝2 のとき y＝6。yをxの式で表すと？", correct: "y＝[[12/x]]", choices: ["y＝[[12/x]]", "y＝3x", "y＝[[6/x]]", "y＝12x"], hint: "反比例の式は y＝[[a/x]]。a ＝ x×y ＝ 2×6 になります。" },
+            { q: "yはxに反比例し、x＝−3 のとき y＝4。yをxの式で表すと？", correct: "y＝−[[12/x]]", choices: ["y＝−[[12/x]]", "y＝[[12/x]]", "y＝−12x", "y＝[[4/x]]"], hint: "a ＝ x×y ＝ (−3)×4 ＝ −12 になります。" },
+            { q: "yはxに比例し、x＝4 のとき y＝2。yをxの式で表すと？", correct: "y＝[[1/2]]x", choices: ["y＝[[1/2]]x", "y＝2x", "y＝[[8/x]]", "y＝x−2"], hint: "y＝ax に代入すると 2 ＝ 4a。a ＝ [[2/4]] を約分すると？" },
+            { q: "y＝−5x の比例定数は？", correct: "−5", choices: ["−5", "5", "x", "−5x"], hint: "y＝ax の a が比例定数です。" },
+            { q: "y＝[[18/x]] で、x＝6 のとき y = ?", correct: "3", choices: ["3", "108", "12", "6"], hint: "x＝6 を代入します。18 ÷ 6 = ?" },
+            { q: "y＝4x で、x＝−2 のとき y = ?", correct: "−8", choices: ["−8", "8", "2", "−2"], hint: "x＝−2 を代入します。4 × (−2) = ?" },
+            { q: "yはxに比例し、x＝5 のとき y＝−10。yをxの式で表すと？", correct: "y＝−2x", choices: ["y＝−2x", "y＝2x", "y＝−[[50/x]]", "y＝x−15"], hint: "y＝ax に代入すると −10 ＝ 5a になります。a = ?" },
+            { q: "yはxに反比例し、x＝4 のとき y＝−2。yをxの式で表すと？", correct: "y＝−[[8/x]]", choices: ["y＝−[[8/x]]", "y＝[[8/x]]", "y＝−[[2/x]]", "y＝−2x"], hint: "a ＝ x×y ＝ 4×(−2) ＝ −8 になります。" },
+            { q: "y＝[[24/x]] で、y＝8 のとき x = ?", correct: "3", choices: ["3", "192", "4", "8"], hint: "8 ＝ [[24/x]] より x ＝ 24 ÷ 8 = ?" },
+            { q: "y＝−3x で、y＝12 のとき x = ?", correct: "−4", choices: ["−4", "4", "−36", "36"], hint: "12 ＝ −3x より x ＝ 12 ÷ (−3) = ?" },
+            { q: "yはxに比例し、x＝6 のとき y＝9。yをxの式で表すと？", correct: "y＝[[3/2]]x", choices: ["y＝[[3/2]]x", "y＝[[2/3]]x", "y＝[[54/x]]", "y＝3x"], hint: "y＝ax に代入すると 9 ＝ 6a。a ＝ [[9/6]] を約分すると？" },
+            { q: "yはxに反比例し、x＝−2 のとき y＝−9。yをxの式で表すと？", correct: "y＝[[18/x]]", choices: ["y＝[[18/x]]", "y＝−[[18/x]]", "y＝9x", "y＝[[9/x]]"], hint: "a ＝ x×y ＝ (−2)×(−9) ＝ 18 になります。" },
+            { q: "y＝[[7/x]] の比例定数は？", correct: "7", choices: ["7", "x", "[[1/7]]", "−7"], hint: "反比例 y＝[[a/x]] の a が比例定数です。" },
+            { q: "yはxに比例し、x＝−4 のとき y＝12。yをxの式で表すと？", correct: "y＝−3x", choices: ["y＝−3x", "y＝3x", "y＝−[[48/x]]", "y＝x＋16"], hint: "y＝ax に代入すると 12 ＝ −4a になります。a = ?" },
+            { q: "y＝−[[36/x]] で、x＝9 のとき y = ?", correct: "−4", choices: ["−4", "4", "−324", "−27"], hint: "x＝9 を代入します。−36 ÷ 9 = ?" },
+            { q: "yはxに比例し、x＝8 のとき y＝−4。yをxの式で表すと？", correct: "y＝−[[1/2]]x", choices: ["y＝−[[1/2]]x", "y＝[[1/2]]x", "y＝−2x", "y＝−[[32/x]]"], hint: "y＝ax に代入すると −4 ＝ 8a。a ＝ −[[4/8]] を約分すると？" },
+            { q: "yはxに反比例し、x＝5 のとき y＝3。yをxの式で表すと？", correct: "y＝[[15/x]]", choices: ["y＝[[15/x]]", "y＝[[5/3]]x", "y＝15x", "y＝[[3/x]]"], hint: "a ＝ x×y ＝ 5×3 ＝ 15 になります。" },
+            { q: "y＝6x で、xの値が2倍になると、yの値は何倍になる？", correct: "2倍", choices: ["2倍", "[[1/2]]倍", "6倍", "12倍"], hint: "比例では、xが2倍、3倍…になると、yも2倍、3倍…になります。" }
+          ]
+        },
+        {
+          id: "shikinokeisan-tanko-tako",
+          title: "式の計算 ― 単項式・多項式の計算",
+          difficulty: 2,
+          grade: "中学2年",
+          chapter: "式の計算",
+          chapterOrder: 2,
+          order: 1,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "📐",
+          color: "indigo",
+          questions: [
+            { q: "3a＋2b−a＋4b = ?", correct: "2a＋6b", choices: ["2a＋6b", "4a＋6b", "2a＋2b", "2a−6b"], hint: "同類項をまとめます。3a − a ＝ 2a、2b ＋ 4b ＝ 6b になります。" },
+            { q: "5x²−3x² = ?", correct: "2x²", choices: ["2x²", "2", "2x⁴", "8x²"], hint: "x²の項どうしをまとめます。係数は 5 − 3 = ?" },
+            { q: "(3a＋b)＋(2a−4b) = ?", correct: "5a−3b", choices: ["5a−3b", "5a＋3b", "5a−5b", "a−3b"], hint: "カッコをはずして同類項をまとめます。b − 4b ＝ −3b になります。" },
+            { q: "(4x−y)−(x＋2y) = ?", correct: "3x−3y", choices: ["3x−3y", "3x−y", "5x＋y", "3x＋3y"], hint: "−のカッコをはずすと符号が変わります。4x − x − y − 2y = ?" },
+            { q: "2(3a−b) = ?", correct: "6a−2b", choices: ["6a−2b", "6a−b", "6a＋2b", "5a−3b"], hint: "分配法則を使います。2×3a − 2×b = ?" },
+            { q: "−3(x−2y) = ?", correct: "−3x＋6y", choices: ["−3x＋6y", "−3x−6y", "3x−6y", "−3x＋2y"], hint: "−3×(−2y) ＝ ＋6y になります。符号に注意しましょう。" },
+            { q: "2(a＋3b)＋3(a−b) = ?", correct: "5a＋3b", choices: ["5a＋3b", "5a−3b", "5a＋9b", "6a＋3b"], hint: "2a ＋ 6b ＋ 3a − 3b になります。同類項をまとめると？" },
+            { q: "4(2x−y)−2(3x−2y) = ?", correct: "2x", choices: ["2x", "2x−8y", "14x−8y", "2x−y"], hint: "8x − 4y − 6x ＋ 4y になります。yの項は消えます。" },
+            { q: "6ab÷2b = ?", correct: "3a", choices: ["3a", "3b", "3ab", "4a"], hint: "6ab を 2b でわります。6÷2 ＝ 3、ab÷b ＝ a になります。" },
+            { q: "2x×3y = ?", correct: "6xy", choices: ["6xy", "5xy", "6x", "6y"], hint: "係数どうし、文字どうしをかけます。2×3 ＝ 6、x×y ＝ xy になります。" },
+            { q: "(−4a)×(−2b) = ?", correct: "8ab", choices: ["8ab", "−8ab", "6ab", "−6ab"], hint: "同じ符号どうしの積は正になります。4×2 ＝ 8、a×b ＝ ab になります。" },
+            { q: "12xy÷(−3x) = ?", correct: "−4y", choices: ["−4y", "4y", "−4xy", "−4x"], hint: "12÷(−3) ＝ −4、xy÷x ＝ y になります。" },
+            { q: "3a²×2a = ?", correct: "6a³", choices: ["6a³", "6a²", "5a³", "6a"], hint: "係数：3×2 ＝ 6。文字：a²×a ＝ a³ になります。" },
+            { q: "8x³÷4x = ?", correct: "2x²", choices: ["2x²", "2x³", "2x", "4x²"], hint: "8÷4 ＝ 2、x³÷x ＝ x² になります。" },
+            { q: "(6a＋4b)÷2 = ?", correct: "3a＋2b", choices: ["3a＋2b", "3a＋4b", "6a＋2b", "3a−2b"], hint: "それぞれの項を2でわります。6a÷2 ＋ 4b÷2 = ?" },
+            { q: "5x−2y−3x＋7y = ?", correct: "2x＋5y", choices: ["2x＋5y", "2x−5y", "8x＋5y", "2x＋9y"], hint: "同類項をまとめます。5x − 3x ＝ 2x、−2y ＋ 7y ＝ 5y になります。" },
+            { q: "(2x)² = ?", correct: "4x²", choices: ["4x²", "2x²", "4x", "x⁴"], hint: "(2x)² ＝ 2x × 2x。係数も2乗して 4x² になります。" },
+            { q: "(−3a)² = ?", correct: "9a²", choices: ["9a²", "−9a²", "6a²", "−6a²"], hint: "(−3a)×(−3a)。同じ符号どうしの積は正になります。" },
+            { q: "a²b×ab = ?", correct: "a³b²", choices: ["a³b²", "a²b²", "a³b", "a²b³"], hint: "a²×a ＝ a³、b×b ＝ b² になります。" },
+            { q: "(x＋5y)−(x−5y) = ?", correct: "10y", choices: ["10y", "0", "2x", "2x＋10y"], hint: "−のカッコをはずすと x ＋ 5y − x ＋ 5y。xの項は消えます。" }
+          ]
+        },
+        {
+          id: "renritsu-houteishiki",
+          title: "方程式 ― 連立方程式",
+          difficulty: 2,
+          grade: "中学2年",
+          chapter: "方程式",
+          chapterOrder: 3,
+          order: 1,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "🔗",
+          color: "indigo",
+          questions: [
+            { q: "連立方程式 x＋y＝5、x−y＝1 を解くと？", correct: "x＝3、y＝2", choices: ["x＝3、y＝2", "x＝2、y＝3", "x＝4、y＝1", "x＝3、y＝−2"], hint: "2つの式をたすと 2x ＝ 6 になります。x = ?" },
+            { q: "連立方程式 x＋y＝7、x−y＝3 を解くと？", correct: "x＝5、y＝2", choices: ["x＝5、y＝2", "x＝2、y＝5", "x＝4、y＝3", "x＝5、y＝−2"], hint: "2つの式をたすと 2x ＝ 10 になります。x = ?" },
+            { q: "連立方程式 2x＋y＝8、x＋y＝5 を解くと？", correct: "x＝3、y＝2", choices: ["x＝3、y＝2", "x＝2、y＝3", "x＝3、y＝−2", "x＝5、y＝−2"], hint: "上の式から下の式をひくと x ＝ 3 になります。y = ?" },
+            { q: "連立方程式 x＋2y＝10、x−y＝1 を解くと？", correct: "x＝4、y＝3", choices: ["x＝4、y＝3", "x＝3、y＝4", "x＝4、y＝−3", "x＝1、y＝3"], hint: "上の式から下の式をひくと 3y ＝ 9 になります。y = ?" },
+            { q: "連立方程式 3x＋y＝10、x＋y＝4 を解くと？", correct: "x＝3、y＝1", choices: ["x＝3、y＝1", "x＝1、y＝3", "x＝3、y＝−1", "x＝2、y＝2"], hint: "上の式から下の式をひくと 2x ＝ 6 になります。x = ?" },
+            { q: "連立方程式 x＋y＝2、x−y＝8 を解くと？", correct: "x＝5、y＝−3", choices: ["x＝5、y＝−3", "x＝−3、y＝5", "x＝5、y＝3", "x＝3、y＝−1"], hint: "2つの式をたすと 2x ＝ 10。x ＝ 5 を代入すると y = ?" },
+            { q: "連立方程式 2x＋3y＝12、2x＋y＝8 を解くと？", correct: "x＝3、y＝2", choices: ["x＝3、y＝2", "x＝2、y＝3", "x＝3、y＝−2", "x＝6、y＝0"], hint: "上の式から下の式をひくと 2y ＝ 4 になります。y = ?" },
+            { q: "連立方程式 x＝y＋4、x＋y＝10 を解くと？", correct: "x＝7、y＝3", choices: ["x＝7、y＝3", "x＝3、y＝7", "x＝6、y＝4", "x＝7、y＝−3"], hint: "代入法を使います。(y＋4) ＋ y ＝ 10、2y ＝ 6 になります。y = ?" },
+            { q: "連立方程式 y＝2x、x＋y＝9 を解くと？", correct: "x＝3、y＝6", choices: ["x＝3、y＝6", "x＝6、y＝3", "x＝3、y＝−6", "x＝2、y＝4"], hint: "代入法を使います。x ＋ 2x ＝ 9、3x ＝ 9 になります。x = ?" },
+            { q: "連立方程式 3x−y＝5、x＋y＝7 を解くと？", correct: "x＝3、y＝4", choices: ["x＝3、y＝4", "x＝4、y＝3", "x＝3、y＝−4", "x＝2、y＝5"], hint: "2つの式をたすと 4x ＝ 12 になります。x = ?" },
+            { q: "連立方程式 2x＋y＝1、x−y＝5 を解くと？", correct: "x＝2、y＝−3", choices: ["x＝2、y＝−3", "x＝−3、y＝2", "x＝2、y＝3", "x＝3、y＝−2"], hint: "2つの式をたすと 3x ＝ 6。x ＝ 2 を代入すると y = ?" },
+            { q: "連立方程式 x＋3y＝−1、x＋y＝3 を解くと？", correct: "x＝5、y＝−2", choices: ["x＝5、y＝−2", "x＝−2、y＝5", "x＝5、y＝2", "x＝1、y＝2"], hint: "上の式から下の式をひくと 2y ＝ −4 になります。y = ?" },
+            { q: "連立方程式 4x＋y＝9、2x−y＝3 を解くと？", correct: "x＝2、y＝1", choices: ["x＝2、y＝1", "x＝1、y＝2", "x＝2、y＝−1", "x＝3、y＝−3"], hint: "2つの式をたすと 6x ＝ 12 になります。x = ?" },
+            { q: "連立方程式 x＋y＝0、x−y＝6 を解くと？", correct: "x＝3、y＝−3", choices: ["x＝3、y＝−3", "x＝−3、y＝3", "x＝3、y＝3", "x＝6、y＝−6"], hint: "2つの式をたすと 2x ＝ 6。x ＝ 3 を代入すると y = ?" },
+            { q: "連立方程式 5x＋2y＝16、3x＋2y＝12 を解くと？", correct: "x＝2、y＝3", choices: ["x＝2、y＝3", "x＝3、y＝2", "x＝2、y＝−3", "x＝4、y＝0"], hint: "上の式から下の式をひくと 2x ＝ 4 になります。x = ?" },
+            { q: "連立方程式 y＝x−2、2x＋y＝7 を解くと？", correct: "x＝3、y＝1", choices: ["x＝3、y＝1", "x＝1、y＝3", "x＝3、y＝−1", "x＝2、y＝0"], hint: "代入法を使います。2x ＋ (x−2) ＝ 7、3x ＝ 9 になります。x = ?" },
+            { q: "連立方程式 2x＋5y＝9、2x＋y＝5 を解くと？", correct: "x＝2、y＝1", choices: ["x＝2、y＝1", "x＝1、y＝2", "x＝2、y＝−1", "x＝0、y＝5"], hint: "上の式から下の式をひくと 4y ＝ 4 になります。y = ?" },
+            { q: "連立方程式 x−2y＝8、x＋2y＝0 を解くと？", correct: "x＝4、y＝−2", choices: ["x＝4、y＝−2", "x＝−2、y＝4", "x＝4、y＝2", "x＝2、y＝−4"], hint: "2つの式をたすと 2x ＝ 8。x ＝ 4 を代入すると y = ?" },
+            { q: "連立方程式 x＝2y、3x＋2y＝16 を解くと？", correct: "x＝4、y＝2", choices: ["x＝4、y＝2", "x＝2、y＝4", "x＝4、y＝−2", "x＝8、y＝4"], hint: "代入法を使います。3×2y ＋ 2y ＝ 16、8y ＝ 16 になります。y = ?" },
+            { q: "連立方程式 7x−2y＝10、3x＋2y＝10 を解くと？", correct: "x＝2、y＝2", choices: ["x＝2、y＝2", "x＝−2、y＝2", "x＝2、y＝−2", "x＝1、y＝3"], hint: "2つの式をたすと 10x ＝ 20 になります。x = ?" }
+          ]
+        },
+        {
+          id: "takoushiki-tenkai",
+          title: "多項式 ― 式の展開",
+          difficulty: 2,
+          grade: "中学3年",
+          chapter: "多項式",
+          chapterOrder: 1,
+          order: 1,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "💫",
+          color: "violet",
+          questions: [
+            { q: "(x＋2)(x＋3) を展開すると？", correct: "x²＋5x＋6", choices: ["x²＋5x＋6", "x²＋6x＋5", "x²＋5x＋5", "x²＋6"], hint: "(x＋a)(x＋b) ＝ x²＋(a＋b)x＋ab。2＋3 ＝ 5、2×3 ＝ 6 になります。" },
+            { q: "(x＋4)(x−2) を展開すると？", correct: "x²＋2x−8", choices: ["x²＋2x−8", "x²−2x−8", "x²＋2x＋8", "x²−8"], hint: "4＋(−2) ＝ 2、4×(−2) ＝ −8 になります。" },
+            { q: "(x−5)(x−1) を展開すると？", correct: "x²−6x＋5", choices: ["x²−6x＋5", "x²＋6x＋5", "x²−6x−5", "x²−4x＋5"], hint: "(−5)＋(−1) ＝ −6、(−5)×(−1) ＝ ＋5 になります。" },
+            { q: "(x＋3)² を展開すると？", correct: "x²＋6x＋9", choices: ["x²＋6x＋9", "x²＋9", "x²＋3x＋9", "x²＋6x＋6"], hint: "(x＋a)² ＝ x²＋2ax＋a²。2×3 ＝ 6、3² ＝ 9 になります。" },
+            { q: "(x−4)² を展開すると？", correct: "x²−8x＋16", choices: ["x²−8x＋16", "x²＋8x＋16", "x²−16", "x²−8x−16"], hint: "(x−a)² ＝ x²−2ax＋a²。2×4 ＝ 8、4² ＝ 16 になります。" },
+            { q: "(x＋5)(x−5) を展開すると？", correct: "x²−25", choices: ["x²−25", "x²＋25", "x²−10x＋25", "x²−5"], hint: "(x＋a)(x−a) ＝ x²−a²（和と差の積）。5² ＝ 25 になります。" },
+            { q: "(x＋1)(x−6) を展開すると？", correct: "x²−5x−6", choices: ["x²−5x−6", "x²＋5x−6", "x²−5x＋6", "x²−7x−6"], hint: "1＋(−6) ＝ −5、1×(−6) ＝ −6 になります。" },
+            { q: "(a＋b)² を展開すると？", correct: "a²＋2ab＋b²", choices: ["a²＋2ab＋b²", "a²＋b²", "a²＋ab＋b²", "2a＋2b"], hint: "和の平方の公式です。まん中の項は 2×a×b ＝ 2ab になります。" },
+            { q: "(x＋7)(x−7) を展開すると？", correct: "x²−49", choices: ["x²−49", "x²＋49", "x²−14x＋49", "x²−7"], hint: "和と差の積は2乗の差になります。7² ＝ 49 です。" },
+            { q: "(2x＋1)(x＋3) を展開すると？", correct: "2x²＋7x＋3", choices: ["2x²＋7x＋3", "2x²＋6x＋3", "2x²＋7x−3", "2x²＋4x＋3"], hint: "2x×x ＋ 2x×3 ＋ 1×x ＋ 1×3 ＝ 2x²＋6x＋x＋3 になります。" },
+            { q: "(x−2)(x＋8) を展開すると？", correct: "x²＋6x−16", choices: ["x²＋6x−16", "x²−6x−16", "x²＋6x＋16", "x²−16"], hint: "(−2)＋8 ＝ 6、(−2)×8 ＝ −16 になります。" },
+            { q: "(x−3)² を展開すると？", correct: "x²−6x＋9", choices: ["x²−6x＋9", "x²＋6x＋9", "x²−9", "x²−6x−9"], hint: "(x−a)² ＝ x²−2ax＋a²。2×3 ＝ 6、3² ＝ 9 になります。" },
+            { q: "x(x＋4) を展開すると？", correct: "x²＋4x", choices: ["x²＋4x", "x²＋4", "4x²", "5x"], hint: "分配法則を使います。x×x ＋ x×4 = ?" },
+            { q: "(x＋2)(x−9) を展開すると？", correct: "x²−7x−18", choices: ["x²−7x−18", "x²＋7x−18", "x²−7x＋18", "x²−11x−18"], hint: "2＋(−9) ＝ −7、2×(−9) ＝ −18 になります。" },
+            { q: "(3x−2)(x＋1) を展開すると？", correct: "3x²＋x−2", choices: ["3x²＋x−2", "3x²−x−2", "3x²＋x＋2", "3x²＋5x−2"], hint: "3x²＋3x−2x−2 になります。3x − 2x = ?" },
+            { q: "(a−b)² を展開すると？", correct: "a²−2ab＋b²", choices: ["a²−2ab＋b²", "a²−b²", "a²＋2ab＋b²", "a²−2ab−b²"], hint: "差の平方の公式です。最後の項は (−b)×(−b) ＝ ＋b² になります。" },
+            { q: "(x＋10)(x−3) を展開すると？", correct: "x²＋7x−30", choices: ["x²＋7x−30", "x²−7x−30", "x²＋7x＋30", "x²＋13x−30"], hint: "10＋(−3) ＝ 7、10×(−3) ＝ −30 になります。" },
+            { q: "2x(3x−5) を展開すると？", correct: "6x²−10x", choices: ["6x²−10x", "6x²−10", "6x²＋10x", "6x−10"], hint: "分配法則を使います。2x×3x ＝ 6x²、2x×(−5) ＝ −10x になります。" },
+            { q: "(x−1)(x＋1) を展開すると？", correct: "x²−1", choices: ["x²−1", "x²＋1", "x²−2x＋1", "x²−2"], hint: "和と差の積は2乗の差になります。1² ＝ 1 です。" },
+            { q: "(2a＋3b)(2a−3b) を展開すると？", correct: "4a²−9b²", choices: ["4a²−9b²", "4a²＋9b²", "2a²−3b²", "4a²−6b²"], hint: "和と差の積。(2a)² ＝ 4a²、(3b)² ＝ 9b² になります。" }
+          ]
+        },
+        {
+          id: "takoushiki-insubunkai",
+          title: "多項式 ― 因数分解",
+          difficulty: 3,
+          grade: "中学3年",
+          chapter: "多項式",
+          chapterOrder: 1,
+          order: 2,
+          quizCount: 10,
+          category: "calc",
+          subject: "数学",
+          icon: "🧱",
+          color: "violet",
+          questions: [
+            { q: "x²＋5x＋6 を因数分解すると？", correct: "(x＋2)(x＋3)", choices: ["(x＋2)(x＋3)", "(x＋1)(x＋6)", "(x−2)(x−3)", "(x＋5)(x＋6)"], hint: "たして5、かけて6になる2つの数を探します。2 と 3 になります。" },
+            { q: "x²＋7x＋12 を因数分解すると？", correct: "(x＋3)(x＋4)", choices: ["(x＋3)(x＋4)", "(x＋2)(x＋6)", "(x−3)(x−4)", "(x＋1)(x＋12)"], hint: "たして7、かけて12になる2つの数を探します。3 と 4 になります。" },
+            { q: "x²−x−6 を因数分解すると？", correct: "(x＋2)(x−3)", choices: ["(x＋2)(x−3)", "(x−2)(x＋3)", "(x＋1)(x−6)", "(x−1)(x＋6)"], hint: "たして−1、かけて−6になる2つの数を探します。＋2 と −3 になります。" },
+            { q: "x²−9 を因数分解すると？", correct: "(x＋3)(x−3)", choices: ["(x＋3)(x−3)", "(x−3)²", "(x＋3)²", "(x−9)(x＋1)"], hint: "2乗の差は和と差の積に分解できます。9 ＝ 3² です。" },
+            { q: "x²＋6x＋9 を因数分解すると？", correct: "(x＋3)²", choices: ["(x＋3)²", "(x＋3)(x−3)", "(x＋9)²", "(x＋1)(x＋9)"], hint: "x²＋2ax＋a² ＝ (x＋a)² の形です。9 ＝ 3²、6 ＝ 2×3 になります。" },
+            { q: "x²−8x＋16 を因数分解すると？", correct: "(x−4)²", choices: ["(x−4)²", "(x＋4)²", "(x−4)(x＋4)", "(x−8)(x−2)"], hint: "x²−2ax＋a² ＝ (x−a)² の形です。16 ＝ 4²、8 ＝ 2×4 になります。" },
+            { q: "x²−2x−15 を因数分解すると？", correct: "(x＋3)(x−5)", choices: ["(x＋3)(x−5)", "(x−3)(x＋5)", "(x＋1)(x−15)", "(x−1)(x＋15)"], hint: "たして−2、かけて−15になる2つの数を探します。＋3 と −5 になります。" },
+            { q: "3x²＋6x を因数分解すると？", correct: "3x(x＋2)", choices: ["3x(x＋2)", "3(x＋2)", "x(3x＋6)", "3x(x＋6)"], hint: "共通因数 3x をくくり出します。3x²÷3x ＝ x、6x÷3x ＝ 2 になります。" },
+            { q: "x²−25 を因数分解すると？", correct: "(x＋5)(x−5)", choices: ["(x＋5)(x−5)", "(x−5)²", "(x＋5)²", "(x−25)(x＋1)"], hint: "2乗の差は和と差の積に分解できます。25 ＝ 5² です。" },
+            { q: "x²＋8x＋15 を因数分解すると？", correct: "(x＋3)(x＋5)", choices: ["(x＋3)(x＋5)", "(x＋1)(x＋15)", "(x−3)(x−5)", "(x＋4)(x＋4)"], hint: "たして8、かけて15になる2つの数を探します。3 と 5 になります。" },
+            { q: "x²−5x＋4 を因数分解すると？", correct: "(x−1)(x−4)", choices: ["(x−1)(x−4)", "(x＋1)(x＋4)", "(x−2)(x−3)", "(x＋1)(x−4)"], hint: "たして−5、かけて＋4になる2つの数を探します。−1 と −4 になります。" },
+            { q: "x²＋2x−24 を因数分解すると？", correct: "(x＋6)(x−4)", choices: ["(x＋6)(x−4)", "(x−6)(x＋4)", "(x＋8)(x−3)", "(x＋12)(x−2)"], hint: "たして＋2、かけて−24になる2つの数を探します。＋6 と −4 になります。" },
+            { q: "x²−12x＋36 を因数分解すると？", correct: "(x−6)²", choices: ["(x−6)²", "(x＋6)²", "(x−6)(x＋6)", "(x−12)(x−3)"], hint: "36 ＝ 6²、12 ＝ 2×6 なので (x−a)² の形になります。" },
+            { q: "2x²−8x を因数分解すると？", correct: "2x(x−4)", choices: ["2x(x−4)", "2(x²−4x)", "x(2x−8)", "2x(x＋4)"], hint: "共通因数 2x をくくり出します。2x²÷2x ＝ x、−8x÷2x ＝ −4 になります。" },
+            { q: "x²−1 を因数分解すると？", correct: "(x＋1)(x−1)", choices: ["(x＋1)(x−1)", "(x−1)²", "(x＋1)²", "x(x−1)"], hint: "2乗の差は和と差の積に分解できます。1 ＝ 1² です。" },
+            { q: "x²＋x−20 を因数分解すると？", correct: "(x＋5)(x−4)", choices: ["(x＋5)(x−4)", "(x−5)(x＋4)", "(x＋10)(x−2)", "(x＋2)(x−10)"], hint: "たして＋1、かけて−20になる2つの数を探します。＋5 と −4 になります。" },
+            { q: "x²−10x＋25 を因数分解すると？", correct: "(x−5)²", choices: ["(x−5)²", "(x＋5)²", "(x＋5)(x−5)", "(x−1)(x−25)"], hint: "25 ＝ 5²、10 ＝ 2×5 なので (x−a)² の形になります。" },
+            { q: "x²＋9x＋14 を因数分解すると？", correct: "(x＋2)(x＋7)", choices: ["(x＋2)(x＋7)", "(x＋1)(x＋14)", "(x−2)(x−7)", "(x＋3)(x＋6)"], hint: "たして9、かけて14になる2つの数を探します。2 と 7 になります。" },
+            { q: "x²−4x−21 を因数分解すると？", correct: "(x＋3)(x−7)", choices: ["(x＋3)(x−7)", "(x−3)(x＋7)", "(x−1)(x＋21)", "(x＋1)(x−21)"], hint: "たして−4、かけて−21になる2つの数を探します。＋3 と −7 になります。" },
+            { q: "4x²−9 を因数分解すると？", correct: "(2x＋3)(2x−3)", choices: ["(2x＋3)(2x−3)", "(2x−3)²", "(2x＋3)²", "(4x＋3)(x−3)"], hint: "4x² ＝ (2x)²、9 ＝ 3²。2乗の差は和と差の積になります。" }
+          ]
+        },
+        {
           id: "houteishiki-machigai-sagashi",
           title: "方程式 ― 間違い探し（思考力）",
           difficulty: 3,
           grade: "中学1年",
           chapter: "方程式",
           chapterOrder: 3,
-          order: 1,
+          order: 8,
           quizCount: 5,
           category: "think",
           subject: "数学",
@@ -1037,8 +1517,8 @@
 
     /* ── 分数レンダリング ── */
     function renderMath(str) {
-      return str.replace(/\[\[(-?)(\d+)\/(\d+)\]\]/g, (_, sign, num, den) =>
-        `<span class="frac"><span class="frac-num">${sign}${num}</span><span class="frac-den">${den}</span></span>`
+      return str.replace(/\[\[([^\/\]]+)\/([^\]]+)\]\]/g, (_, num, den) =>
+        `<span class="frac"><span class="frac-num">${num}</span><span class="frac-den">${den}</span></span>`
       );
     }
 
@@ -1053,6 +1533,7 @@
       timerInterval = setInterval(() => {
         elapsedMs = performance.now() - timerStart;
         el.textContent = '⏱ ' + formatTime(elapsedMs);
+        updateGhost();
       }, 100);
     }
     function stopTimer() {
@@ -1087,6 +1568,22 @@
     }
     function saveBestTime(unitId, ms) {
       try { localStorage.setItem(`mq_best_${unitId}`, ms); } catch(e) {}
+    }
+
+    /* ── 出題数別ベストタイム（標準出題数は既存キーを使用） ── */
+    function defaultCountOf(unitId) {
+      const u = QUIZ_DATA.units.find(x => x.id === unitId);
+      return (u && (u.quizCount || 10)) || 10;
+    }
+    function bestKeyFor(unitId, count) {
+      return count === defaultCountOf(unitId) ? `mq_best_${unitId}` : `mq_best_${unitId}_c${count}`;
+    }
+    function getBestTimeFor(unitId, count) {
+      try { const v = localStorage.getItem(bestKeyFor(unitId, count)); return v ? parseInt(v) : null; }
+      catch(e) { return null; }
+    }
+    function saveBestTimeFor(unitId, count, ms) {
+      try { localStorage.setItem(bestKeyFor(unitId, count), ms); } catch(e) {}
     }
 
     /* ── 学習履歴（単元別） ──
@@ -1234,7 +1731,10 @@
 
     function selectUnit(id) {
       currentUnitId = id;
+      isDailyMode = false; isNigateMode = false;
       const unit = QUIZ_DATA.units.find(u=>u.id===id);
+      renderCountButtons(unit);
+      document.getElementById('ghost-display').style.display = 'none';
       document.getElementById('home-screen').style.display = 'none';
       const wrapper = document.getElementById('quiz-screen-wrapper');
       wrapper.style.display = 'flex';
@@ -1252,10 +1752,13 @@
 
     function goHome() {
       if (timerInterval) stopTimer();
+      isDailyMode = false; isNigateMode = false; isReviewMode = false;
+      document.getElementById('ghost-display').style.display = 'none';
       document.getElementById('quiz-screen-wrapper').style.display = 'none';
       document.getElementById('home-screen').style.display = 'block';
       const activeGrade = document.querySelector('.filter-btn.active')?.dataset.grade || 'all';
       renderCards(activeGrade);
+      renderHomeTools();
     }
 
     /* ── ストリーク ── */
@@ -1272,18 +1775,22 @@
     /* ── クイズロジック ── */
     let unit, questions, current, correctCount, answered, hadMistake, streakCount;
     let wrongQuestions = [], isReviewMode = false;
+    let isDailyMode = false, isNigateMode = false, dailyPairs = null, nigatePairs = null;
+    let ghostBestMs = null, selectedCount = null, lastShare = '';
     const LABELS  = ['A','B','C','D'];
     const shuffle = a => [...a].sort(()=>Math.random()-0.5);
 
     async function startQuiz(timeAttack) {
       isTimeAttack = timeAttack;
       unit = QUIZ_DATA.units.find(u=>u.id===currentUnitId);
-      questions = shuffle(unit.questions).slice(0, unit.quizCount || 10);
+      questions = shuffle(unit.questions).slice(0, selectedCount || unit.quizCount || 10);
       current = 0; correctCount = 0; streakCount = 0; wrongQuestions = []; isReviewMode = false;
+      isDailyMode = false; isNigateMode = false;
 
       document.getElementById('mode-screen').style.display = 'none';
       document.getElementById('quiz-area').style.display   = 'block';
 
+      ghostBestMs = isTimeAttack ? getBestTimeFor(currentUnitId, questions.length) : null;
       if (isTimeAttack) {
         document.getElementById('quiz-card').classList.add('timeattack-mode');
         await showCountdown();
@@ -1323,6 +1830,7 @@
       document.getElementById('header-count').textContent = `${current+1} / ${total}`;
       document.getElementById('q-label').textContent = `問題 ${current+1}`;
       document.getElementById('progress-fill').style.width = `${current/total*100}%`;
+      updateGhost();
 
       const card = document.getElementById('quiz-card');
       card.classList.toggle('spot-mode', q.type === 'spot');
@@ -1376,7 +1884,10 @@
       const isCorrect = pickedLine === correctLine;
       if (isCorrect) {
         answered = true;
-        if (!hadMistake) { correctCount++; streakCount++; showStreakToast(streakCount); }
+        if (!hadMistake) {
+          correctCount++; streakCount++; showStreakToast(streakCount); trackMaxAnswerStreak(streakCount);
+          if (isNigateMode) removeFromWrongBook(ownerUnitOf(questions[current]), questions[current]);
+        }
         else { wrongQuestions.push(questions[current]); }
         document.querySelectorAll('.spot-choice').forEach((b, i) => {
           b.disabled = true;
@@ -1387,6 +1898,7 @@
         document.getElementById('hint-box').classList.remove('show');
         setTimeout(() => document.getElementById('next-btn').classList.add('show'), isTimeAttack ? 150 : 380);
       } else {
+        if (!hadMistake) addToWrongBook(ownerUnitOf(questions[current]), questions[current]);
         hadMistake = true; streakCount = 0;
         btn.disabled = true;
         btn.classList.add('wrong');
@@ -1402,7 +1914,10 @@
       const isCorrect = idx === correctIdx;
       if (isCorrect) {
         answered = true;
-        if (!hadMistake) { correctCount++; streakCount++; showStreakToast(streakCount); }
+        if (!hadMistake) {
+          correctCount++; streakCount++; showStreakToast(streakCount); trackMaxAnswerStreak(streakCount);
+          if (isNigateMode) removeFromWrongBook(ownerUnitOf(questions[current]), questions[current]);
+        }
         else { wrongQuestions.push(questions[current]); }
         document.querySelectorAll('.choice-btn').forEach((b,i)=>{
           b.disabled=true;
@@ -1413,6 +1928,7 @@
         document.getElementById('hint-box').classList.remove('show');
         setTimeout(()=>document.getElementById('next-btn').classList.add('show'), isTimeAttack ? 150 : 380);
       } else {
+        if (!hadMistake) addToWrongBook(ownerUnitOf(questions[current]), questions[current]);
         hadMistake = true; streakCount = 0;
         btn.disabled = true;
         btn.classList.add('wrong');
@@ -1430,11 +1946,14 @@
 
     function showResult() {
       if (isTimeAttack) stopTimer();
-      if (!isReviewMode && correctCount === questions.length) incrementClearCount(currentUnitId);
-      // 履歴記録（復習モードは除外。1回挑戦のスコアと所要時間を蓄積）
-      if (!isReviewMode) {
+      document.getElementById('ghost-display').style.display = 'none';
+      if (!isReviewMode && !isDailyMode && correctCount === questions.length) incrementClearCount(currentUnitId);
+      // 履歴記録（復習モード・デイリーは除外。1回挑戦のスコアと所要時間を蓄積）
+      if (!isReviewMode && !isDailyMode) {
         recordUnitHistory(currentUnitId, correctCount, questions.length, isTimeAttack ? elapsedMs : null);
       }
+      bumpDayStreak();
+      if (isDailyMode && !isReviewMode) recordDailyDone();
 
       document.getElementById('quiz-area').style.display        = 'none';
       document.getElementById('result-screen').style.display    = 'block';
@@ -1455,7 +1974,10 @@
         document.getElementById('normal-result').style.display = 'block';
         document.getElementById('ta-result').style.display     = 'none';
 
-        document.getElementById('result-title-text').textContent = isReviewMode ? '復習完了！' : 'クイズ完了！';
+        document.getElementById('result-title-text').textContent =
+          isDailyMode && !isReviewMode ? '今日のチャレンジ完了！'
+          : isReviewMode ? (isNigateMode ? 'ニガテ復習 完了！' : '復習完了！')
+          : 'クイズ完了！';
         const emoji = pct>=90?'🏆':pct>=70?'🌟':pct>=50?'📚':'💪';
         const msg   = isReviewMode
           ? (pct===100 ? '全問正解！完璧な復習！🎉' : `${correctCount}/${total}問 正解。もう一度チャレンジ！`)
@@ -1464,6 +1986,7 @@
         document.getElementById('res-msg').textContent     = msg;
         document.getElementById('res-correct').textContent = correctCount;
         document.getElementById('res-wrong').textContent   = total - correctCount;
+        lastShare = `【数学問題集】${isDailyMode ? '📅デイリーチャレンジ ' + todayStr() : unit.title}｜${total}問中${correctCount}問正解（${pct}%）${pct === 100 ? '｜全問正解！🏆' : ''}`;
 
         let n = 0; const el = document.getElementById('res-pct');
         const t = setInterval(()=>{ n=Math.min(n+2,pct); el.textContent=n+'%'; if(n>=pct)clearInterval(t); }, 18);
@@ -1479,9 +2002,13 @@
         document.getElementById('ta-result').style.display     = 'block';
 
         const timeStr  = formatTime(elapsedMs);
-        const prevBest = getBestTime(currentUnitId);
+        const prevBest = getBestTimeFor(currentUnitId, questions.length);
         const isNewBest = prevBest === null || elapsedMs < prevBest;
-        if (isNewBest) saveBestTime(currentUnitId, elapsedMs);
+        if (isNewBest) {
+          saveBestTimeFor(currentUnitId, questions.length, elapsedMs);
+          try { localStorage.setItem('mq_best_updates', parseInt(localStorage.getItem('mq_best_updates') || '0') + 1); } catch(e) {}
+        }
+        lastShare = `【数学問題集】${unit.title}｜タイムアタック${total}問｜タイム ${timeStr}｜正解 ${correctCount}/${total}${isNewBest ? '｜自己ベスト更新！🎉' : ''}`;
 
         document.getElementById('ta-time-value').textContent = timeStr;
         document.getElementById('ta-correct').textContent    = correctCount;
@@ -1506,6 +2033,8 @@
         setTimeout(()=>launchConfetti(innerWidth*.3, innerHeight*.35), 200);
         setTimeout(()=>launchConfetti(innerWidth*.7, innerHeight*.35), 450);
       }
+
+      setTimeout(checkNewBadges, 900);
     }
 
     function startReview() {
@@ -1525,6 +2054,8 @@
     }
 
     function retryMode() {
+      if (isDailyMode) { startDailyChallenge(); return; }
+      if (isNigateMode) { startNigateReview(); return; }
       isReviewMode = false;
       document.getElementById('result-screen').style.display    = 'none';
       document.getElementById('timer-display').textContent      = '⏱ 0:00.0';
@@ -1612,9 +2143,325 @@
       `;
     }
 
+    /* ═══════════════════════════════════
+       出題数選択（5問 / 10問 / 20問）
+    ═══════════════════════════════════ */
+    function renderCountButtons(u) {
+      const pool = u.questions.length;
+      const def = Math.min(u.quizCount || 10, pool);
+      const opts = [...new Set([5, 10, 20].filter(n => n <= pool).concat([def]))].sort((a, b) => a - b);
+      selectedCount = def;
+      document.getElementById('count-btns').innerHTML = opts.map(n =>
+        `<button class="count-btn ${n === def ? 'active' : ''}" data-count="${n}" onclick="setCount(${n})">${n}問</button>`
+      ).join('');
+      document.getElementById('count-select').style.display = opts.length > 1 ? 'flex' : 'none';
+    }
+    function setCount(n) {
+      selectedCount = n;
+      document.querySelectorAll('.count-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.count) === n));
+    }
+
+    /* ═══════════════════════════════════
+       ゴースト（タイムアタック中の自己ベスト比較）
+    ═══════════════════════════════════ */
+    function updateGhost() {
+      const el = document.getElementById('ghost-display');
+      if (!isTimeAttack || ghostBestMs === null || !questions || !questions.length) { el.style.display = 'none'; return; }
+      const expected = ghostBestMs * (current / questions.length);
+      const diff = (elapsedMs - expected) / 1000;
+      el.style.display = 'block';
+      el.textContent = `👻${diff >= 0 ? '＋' : '−'}${Math.abs(diff).toFixed(1)}秒`;
+      el.classList.toggle('behind', diff > 0);
+      el.classList.toggle('ahead', diff <= 0);
+    }
+
+    /* ═══════════════════════════════════
+       連続挑戦日数（🔥◯日連続）
+    ═══════════════════════════════════ */
+    function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+    function todayStr() { return dateKey(new Date()); }
+    function yesterdayStr() { const d = new Date(); d.setDate(d.getDate() - 1); return dateKey(d); }
+    function getDayStreak() {
+      try { return Object.assign({ last: '', streak: 0, max: 0 }, JSON.parse(localStorage.getItem('mq_daystreak') || '{}')); }
+      catch(e) { return { last: '', streak: 0, max: 0 }; }
+    }
+    function bumpDayStreak() {
+      try {
+        const s = getDayStreak(), today = todayStr();
+        if (s.last === today) return s;
+        s.streak = (s.last === yesterdayStr()) ? s.streak + 1 : 1;
+        s.last = today;
+        if (s.streak > s.max) s.max = s.streak;
+        localStorage.setItem('mq_daystreak', JSON.stringify(s));
+        return s;
+      } catch(e) { return { last: '', streak: 0, max: 0 }; }
+    }
+    function renderStreakChip() {
+      const s = getDayStreak();
+      const el = document.getElementById('streak-chip');
+      const active = s.streak > 0 && (s.last === todayStr() || s.last === yesterdayStr());
+      el.style.display = active ? 'inline-flex' : 'none';
+      if (active) el.textContent = `🔥 ${s.streak}日連続`;
+    }
+
+    /* ═══════════════════════════════════
+       シェアテキスト（結果コピー）
+    ═══════════════════════════════════ */
+    function copyShareText() {
+      const btn = document.getElementById('btn-share');
+      const done = () => { btn.textContent = 'コピーしました ✅'; setTimeout(() => { btn.textContent = '結果をコピー 📋'; }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(lastShare).then(done).catch(() => fallbackCopy(lastShare, done));
+      } else {
+        fallbackCopy(lastShare, done);
+      }
+    }
+    function fallbackCopy(text, done) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch(e) {}
+      document.body.removeChild(ta);
+    }
+
+    /* ═══════════════════════════════════
+       デイリーチャレンジ（日付シードで毎日同じ5問）
+    ═══════════════════════════════════ */
+    function mulberry32(a) {
+      return function() {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    function buildDailyQuestions() {
+      const pool = [];
+      QUIZ_DATA.units.forEach(u => {
+        if ((u.category || 'calc') !== 'calc') return;
+        u.questions.forEach(q => pool.push({ u, q }));
+      });
+      const d = new Date();
+      const rnd = mulberry32(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate());
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      return pool.slice(0, 5);
+    }
+    function startDailyChallenge() {
+      dailyPairs = buildDailyQuestions();
+      isDailyMode = true; isNigateMode = false; isReviewMode = false; isTimeAttack = false;
+      unit = { id: 'daily', title: 'デイリーチャレンジ', questions: dailyPairs.map(p => p.q), quizCount: 5 };
+      currentUnitId = 'daily';
+      questions = dailyPairs.map(p => p.q);
+      current = 0; correctCount = 0; streakCount = 0; wrongQuestions = [];
+      ghostBestMs = null;
+      document.getElementById('home-screen').style.display = 'none';
+      document.getElementById('quiz-screen-wrapper').style.display = 'flex';
+      document.getElementById('quiz-header-title').textContent = `📅 デイリーチャレンジ（${todayStr()}）`;
+      document.getElementById('mode-screen').style.display = 'none';
+      document.getElementById('result-screen').style.display = 'none';
+      document.getElementById('quiz-area').style.display = 'block';
+      document.getElementById('quiz-card').classList.remove('timeattack-mode');
+      document.getElementById('timer-display').textContent = '⏱ 0:00.0';
+      document.getElementById('timer-display').classList.remove('running');
+      document.getElementById('ghost-display').style.display = 'none';
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('btn-retry').textContent = 'もう一度 🔄';
+      showQuestion();
+    }
+    function recordDailyDone() {
+      try {
+        const today = todayStr();
+        const prev = JSON.parse(localStorage.getItem('mq_dailych') || '{}');
+        if (prev.date !== today) {
+          localStorage.setItem('mq_daily_count', parseInt(localStorage.getItem('mq_daily_count') || '0') + 1);
+        }
+        localStorage.setItem('mq_dailych', JSON.stringify({ date: today, correct: correctCount, total: questions.length }));
+        // グローバル累計にも反映（単元別履歴には入れない）
+        const g = getGlobalStats();
+        g.totalCorrect += correctCount;
+        g.totalQuestions += questions.length;
+        g.lastPlayTs = Date.now();
+        localStorage.setItem('mq_global', JSON.stringify(g));
+      } catch(e) {}
+    }
+
+    /* ═══════════════════════════════════
+       ニガテ復習（間違い帳の永続化）
+       mq_wrongbook : [{k:"unitId#qIndex", u:unitId, i:qIndex, n:回数, ts}]
+    ═══════════════════════════════════ */
+    function getWrongBook() {
+      try { return JSON.parse(localStorage.getItem('mq_wrongbook') || '[]'); } catch(e) { return []; }
+    }
+    function saveWrongBook(book) {
+      try { localStorage.setItem('mq_wrongbook', JSON.stringify(book.slice(0, 100))); } catch(e) {}
+    }
+    function ownerUnitOf(q) {
+      if (isDailyMode && dailyPairs) { const p = dailyPairs.find(p => p.q === q); if (p) return p.u; }
+      if (isNigateMode && nigatePairs) { const p = nigatePairs.find(p => p.q === q); if (p) return p.u; }
+      return (unit && QUIZ_DATA.units.includes(unit)) ? unit : null;
+    }
+    function addToWrongBook(u, q) {
+      if (!u) return;
+      const idx = u.questions.indexOf(q);
+      if (idx < 0) return;
+      const key = u.id + '#' + idx;
+      const book = getWrongBook();
+      const hit = book.find(e => e.k === key);
+      if (hit) { hit.n = (hit.n || 1) + 1; hit.ts = Date.now(); }
+      else book.unshift({ k: key, u: u.id, i: idx, n: 1, ts: Date.now() });
+      saveWrongBook(book);
+    }
+    function removeFromWrongBook(u, q) {
+      if (!u) return;
+      const idx = u.questions.indexOf(q);
+      if (idx < 0) return;
+      const key = u.id + '#' + idx;
+      const book = getWrongBook();
+      if (!book.some(e => e.k === key)) return;
+      saveWrongBook(book.filter(e => e.k !== key));
+      try { localStorage.setItem('mq_nigate_cleared', parseInt(localStorage.getItem('mq_nigate_cleared') || '0') + 1); } catch(e) {}
+    }
+    function trackMaxAnswerStreak(n) {
+      try {
+        const m = parseInt(localStorage.getItem('mq_max_answer_streak') || '0');
+        if (n > m) localStorage.setItem('mq_max_answer_streak', n);
+      } catch(e) {}
+    }
+    function startNigateReview() {
+      const book = getWrongBook();
+      const pairs = [];
+      book.forEach(e => {
+        const u = QUIZ_DATA.units.find(x => x.id === e.u);
+        if (u && u.questions[e.i]) pairs.push({ u, q: u.questions[e.i] });
+      });
+      if (!pairs.length) {
+        alert('ニガテ問題はまだありません。\nクイズで間違えた問題が自動でここにたまります。');
+        return;
+      }
+      nigatePairs = pairs;
+      isNigateMode = true; isDailyMode = false; isReviewMode = true; isTimeAttack = false;
+      unit = { id: 'nigate', title: 'ニガテ復習', questions: pairs.map(p => p.q), quizCount: pairs.length };
+      currentUnitId = 'nigate';
+      questions = shuffle(pairs.map(p => p.q)).slice(0, 10);
+      current = 0; correctCount = 0; streakCount = 0; wrongQuestions = [];
+      ghostBestMs = null;
+      document.getElementById('home-screen').style.display = 'none';
+      document.getElementById('quiz-screen-wrapper').style.display = 'flex';
+      document.getElementById('quiz-header-title').textContent = `📝 ニガテ復習（全${pairs.length}問から出題）`;
+      document.getElementById('mode-screen').style.display = 'none';
+      document.getElementById('result-screen').style.display = 'none';
+      document.getElementById('quiz-area').style.display = 'block';
+      document.getElementById('quiz-card').classList.remove('timeattack-mode');
+      document.getElementById('timer-display').textContent = '⏱ 0:00.0';
+      document.getElementById('timer-display').classList.remove('running');
+      document.getElementById('ghost-display').style.display = 'none';
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('btn-retry').textContent = 'もう一度 🔄';
+      showQuestion();
+    }
+
+    /* ═══════════════════════════════════
+       バッジ図鑑
+    ═══════════════════════════════════ */
+    const BADGES = [
+      { id: 'first',     icon: '🌱', name: 'はじめの一歩',     desc: 'はじめて1問正解する',                     cond: s => s.totalCorrect >= 1 },
+      { id: 'q100',      icon: '🚶', name: '計算の旅人',       desc: '累計100問に挑戦する',                    cond: s => s.totalQuestions >= 100 },
+      { id: 'q300',      icon: '🏃', name: '計算の探究者',     desc: '累計300問に挑戦する',                    cond: s => s.totalQuestions >= 300 },
+      { id: 'q1000',     icon: '🧙', name: '計算マスター',     desc: '累計1000問に挑戦する',                   cond: s => s.totalQuestions >= 1000 },
+      { id: 'perfect1',  icon: '💮', name: 'パーフェクト',     desc: '全問正解を1回達成する',                   cond: s => s.totalClears >= 1 },
+      { id: 'perfect10', icon: '👑', name: 'パーフェクト王',   desc: '全問正解を10回達成する',                  cond: s => s.totalClears >= 10 },
+      { id: 'speed1',    icon: '⚡', name: 'スピードスター',   desc: 'タイムアタックでベストタイムを記録する',     cond: s => s.bestCount >= 1 },
+      { id: 'newrec5',   icon: '📈', name: '記録ハンター',     desc: '自己ベストを5回更新する',                 cond: s => s.bestUpdates >= 5 },
+      { id: 'days3',     icon: '🔥', name: '三日坊主卒業',     desc: '3日連続で挑戦する',                      cond: s => s.maxStreakDays >= 3 },
+      { id: 'days7',     icon: '🌟', name: '一週間の鬼',       desc: '7日連続で挑戦する',                      cond: s => s.maxStreakDays >= 7 },
+      { id: 'daily1',    icon: '📅', name: 'デイリーデビュー', desc: 'デイリーチャレンジに参加する',             cond: s => s.dailyCount >= 1 },
+      { id: 'daily7',    icon: '🗓️', name: 'デイリー常連',     desc: 'デイリーチャレンジに7回参加する',          cond: s => s.dailyCount >= 7 },
+      { id: 'units5',    icon: '🗺️', name: '単元めぐり',       desc: '5つの単元に挑戦する',                    cond: s => s.playedUnits >= 5 },
+      { id: 'streak10',  icon: '💥', name: '集中の達人',       desc: '1回のクイズで10問連続正解する',            cond: s => s.maxAnswerStreak >= 10 },
+      { id: 'nigate10',  icon: '📝', name: 'ニガテつぶし',     desc: 'ニガテ復習で10問克服する',                cond: s => s.nigateCleared >= 10 },
+      { id: 'allclear',  icon: '🏆', name: '全単元制覇',       desc: 'すべての計算単元で全問正解する',           cond: s => s.allCalcCleared }
+    ];
+    function collectBadgeStats() {
+      const g = getGlobalStats();
+      const day = getDayStreak();
+      let totalClears = 0, bestCount = 0, playedUnits = 0, allCalcCleared = true;
+      QUIZ_DATA.units.forEach(u => {
+        const c = getClearCount(u.id);
+        totalClears += c;
+        if (getBestTime(u.id) !== null) bestCount++;
+        if (getUnitHistory(u.id).plays > 0) playedUnits++;
+        if ((u.category || 'calc') === 'calc' && c === 0) allCalcCleared = false;
+      });
+      const num = k => { try { return parseInt(localStorage.getItem(k) || '0'); } catch(e) { return 0; } };
+      return {
+        totalCorrect: g.totalCorrect, totalQuestions: g.totalQuestions,
+        totalClears, bestCount, playedUnits, allCalcCleared,
+        bestUpdates: num('mq_best_updates'),
+        maxStreakDays: Math.max(day.max || 0, day.streak || 0),
+        dailyCount: num('mq_daily_count'),
+        maxAnswerStreak: num('mq_max_answer_streak'),
+        nigateCleared: num('mq_nigate_cleared')
+      };
+    }
+    function openBadgeBook() {
+      renderBadgeBook();
+      document.getElementById('badge-modal').classList.add('active');
+    }
+    function closeBadgeBook(ev) {
+      if (ev && ev.target && ev.target.id !== 'badge-modal') return;
+      document.getElementById('badge-modal').classList.remove('active');
+    }
+    function renderBadgeBook() {
+      const s = collectBadgeStats();
+      const got = BADGES.filter(b => b.cond(s)).length;
+      document.getElementById('badge-body').innerHTML =
+        `<div class="badge-summary">獲得バッジ：${got} / ${BADGES.length} 個</div>` +
+        `<div class="badge-grid">` +
+        BADGES.map(b => {
+          const ok = b.cond(s);
+          return `<div class="badge-item ${ok ? '' : 'locked'}">
+            <div class="badge-icon">${ok ? b.icon : '🔒'}</div>
+            <div class="badge-name">${b.name}</div>
+            <div class="badge-desc">${b.desc}</div>
+          </div>`;
+        }).join('') +
+        `</div>`;
+    }
+    function checkNewBadges() {
+      try {
+        const s = collectBadgeStats();
+        const earned = JSON.parse(localStorage.getItem('mq_badges_earned') || '[]');
+        const newly = BADGES.filter(b => b.cond(s) && !earned.includes(b.id));
+        if (!newly.length) return;
+        newly.forEach(b => earned.push(b.id));
+        localStorage.setItem('mq_badges_earned', JSON.stringify(earned));
+        const toast = document.getElementById('streak-toast');
+        toast.textContent = `🏅 バッジ獲得：${newly[0].name}！`;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 2600);
+      } catch(e) {}
+    }
+
+    /* ── ホームツールの表示更新 ── */
+    function renderHomeTools() {
+      renderStreakChip();
+      try {
+        const d = JSON.parse(localStorage.getItem('mq_dailych') || '{}');
+        document.getElementById('daily-btn').textContent =
+          d.date === todayStr() ? '📅 今日のチャレンジ ✅' : '📅 今日のチャレンジ';
+      } catch(e) {}
+      const n = getWrongBook().length;
+      document.getElementById('nigate-btn').textContent = n > 0 ? `📝 ニガテ復習（${n}問）` : '📝 ニガテ復習';
+    }
+
     /* ── 初期化 ── */
     buildFilter();
     renderCards('all');
+    renderHomeTools();
   </script>
 </body>
 </html>
