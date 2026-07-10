@@ -239,6 +239,8 @@
     .result-row-btns { display: flex; gap: 10px; }
 
     /* ── 分数表示 ── */
+    /* 教科書風の変数表記：Latin文字のみイタリックserif（日本語は立体のまま） */
+    .mn { font-family: 'Times New Roman', 'Georgia', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-style: italic; }
     .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 1px; font-size: 0.82em; line-height: 1.15; }
     .frac-num { border-bottom: 1.5px solid currentColor; padding: 0 3px 1px; text-align: center; min-width: 1em; }
     .frac-den { padding: 1px 3px 0; text-align: center; min-width: 1em; }
@@ -1515,11 +1517,17 @@
       if (parts.length) requestAnimationFrame(raf);
     }
 
-    /* ── 分数レンダリング ── */
+    /* ── 数式レンダリング（分数＋教科書風の変数表記） ── */
+    // 変数（x, y, a, b 等のLatin文字）だけを .mn（イタリックserif）で囲む。日本語・数字はそのまま。
+    function wrapVars(text) {
+      return text.replace(/[A-Za-z]+/g, m => `<span class="mn">${m}</span>`);
+    }
     function renderMath(str) {
-      return str.replace(/\[\[([^\/\]]+)\/([^\]]+)\]\]/g, (_, num, den) =>
+      const html = String(str).replace(/\[\[([^\/\]]+)\/([^\]]+)\]\]/g, (_, num, den) =>
         `<span class="frac"><span class="frac-num">${num}</span><span class="frac-den">${den}</span></span>`
       );
+      // HTMLタグの中身を壊さないよう、タグ以外のテキスト部分にだけ変数装飾を適用する
+      return html.split(/(<[^>]+>)/g).map(seg => seg.charAt(0) === '<' ? seg : wrapVars(seg)).join('');
     }
 
     /* ── タイマー ── */
@@ -1839,7 +1847,7 @@
         // 間違い探し型
         document.getElementById('q-text').innerHTML =
           `<div class="spot-badge">🔍 思考力問題（間違い探し）</div>` +
-          `<div class="spot-prompt">${q.prompt}</div>` +
+          `<div class="spot-prompt">${renderMath(q.prompt)}</div>` +
           `<div class="spot-process">` +
             q.process.map((line, i) =>
               `<div class="spot-line"><span class="line-num">${i+1}.</span>${renderMath(line)}</div>`
