@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数学パーク | ワールドマップ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #f0fdf4;
+      min-height: 100vh;
+      color: #1e1b4b;
+      overflow-x: hidden;
+    }
+
+    /* ── 浮遊記号（パークは緑空バージョン） ── */
+    .math-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .math-bg span { position: absolute; font-weight: 900; opacity: 0; animation: floatUp linear infinite; }
+    @keyframes floatUp {
+      0%   { transform: translateY(105vh) rotate(0deg);   opacity: 0; }
+      8%   { opacity: 1; }
+      92%  { opacity: 1; }
+      100% { transform: translateY(-8vh) rotate(360deg); opacity: 0; }
+    }
+    #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 200; }
+
+    /* ── 数式表記（index.html と同じ教科書風） ── */
+    .mn { font-family: 'Times New Roman', 'Georgia', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-style: italic; }
+    .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 1px; font-size: 0.82em; line-height: 1.15; }
+    .frac-num { border-bottom: 1.5px solid currentColor; padding: 0 3px 1px; text-align: center; min-width: 1em; }
+    .frac-den { padding: 1px 3px 0; text-align: center; min-width: 1em; }
+
+    /* ═══════════ ヘッダー ═══════════ */
+    .park-hero {
+      position: relative; z-index: 1;
+      background: linear-gradient(135deg, #059669 0%, #0d9488 45%, #0ea5e9 100%);
+      color: #fff; text-align: center;
+      padding: 44px 24px 40px;
+      clip-path: ellipse(120% 100% at 50% 0%);
+    }
+    .park-hero .hero-icon { font-size: 58px; display: block; animation: sway 3s ease-in-out infinite; }
+    @keyframes sway { 0%,100%{transform:rotate(-6deg)} 50%{transform:rotate(6deg)} }
+    .park-hero h1 { font-size: clamp(1.8rem, 6vw, 3rem); font-weight: 900; margin-top: 8px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .park-hero p { opacity: 0.9; margin-top: 6px; font-size: 0.95rem; }
+    .hero-back {
+      position: absolute; top: 16px; left: 16px;
+      background: rgba(255,255,255,0.2); border: 1.5px solid rgba(255,255,255,0.4);
+      color: #fff; text-decoration: none; font-size: 0.8rem; font-weight: 700;
+      padding: 7px 14px; border-radius: 99px; transition: background 0.18s;
+    }
+    .hero-back:hover { background: rgba(255,255,255,0.32); }
+
+    /* ── にゃけちくん ── */
+    .nyake { position: relative; z-index: 1; max-width: 720px; margin: -18px auto 0; padding: 0 20px; display: flex; align-items: flex-start; gap: 10px; }
+    .nyake-face {
+      width: 54px; height: 54px; border-radius: 50%; flex-shrink: 0;
+      background: #fff; border: 2.5px solid #a7f3d0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; box-shadow: 0 4px 14px rgba(5,150,105,0.2);
+    }
+    .nyake-bubble {
+      background: #fff; border: 2px solid #a7f3d0; border-radius: 16px;
+      padding: 10px 16px; font-size: 0.86rem; font-weight: 700; color: #065f46;
+      box-shadow: 0 4px 14px rgba(5,150,105,0.12); position: relative; margin-top: 4px;
+    }
+    .nyake-bubble::before {
+      content: ''; position: absolute; left: -8px; top: 16px;
+      width: 14px; height: 14px; background: #fff;
+      border-left: 2px solid #a7f3d0; border-bottom: 2px solid #a7f3d0;
+      transform: rotate(45deg);
+    }
+
+    /* ── 進捗サマリー ── */
+    .park-summary {
+      position: relative; z-index: 1;
+      display: flex; justify-content: center; gap: 14px;
+      padding: 18px 20px 0; flex-wrap: wrap;
+    }
+    .psum { text-align: center; background: #fff; border-radius: 14px; padding: 12px 26px; box-shadow: 0 2px 12px rgba(5,150,105,0.12); border: 1.5px solid #a7f3d0; }
+    .psum-num { font-size: 1.4rem; font-weight: 900; color: #059669; }
+    .psum-label { font-size: 0.7rem; color: #6b7280; margin-top: 2px; }
+
+    /* ═══════════ ワールドマップ ═══════════ */
+    #map-screen { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 10px 18px 60px; }
+    .grade-heading {
+      display: flex; align-items: center; gap: 10px;
+      margin: 34px 0 6px; font-size: 1.05rem; font-weight: 900; color: #065f46;
+    }
+    .grade-heading::after { content: ''; flex: 1; height: 2px; background: #a7f3d0; border-radius: 2px; }
+
+    .world-card {
+      background: #fff; border-radius: 22px; border: 2px solid #d1fae5;
+      box-shadow: 0 6px 24px rgba(5,150,105,0.1);
+      padding: 20px 22px; margin-top: 16px;
+      animation: cardIn 0.45s ease-out both;
+    }
+    @keyframes cardIn { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+    .world-card.locked-world { opacity: 0.62; background: #f8fafc; border-color: #e2e8f0; }
+    .world-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .world-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: linear-gradient(135deg, #d1fae5, #cffafe); border: 1.5px solid #a7f3d0; flex-shrink: 0; }
+    .world-name { font-size: 1.1rem; font-weight: 900; }
+    .world-sub { font-size: 0.74rem; color: #6b7280; margin-top: 1px; }
+    .world-stars { margin-left: auto; font-size: 0.82rem; font-weight: 900; color: #d97706; background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 99px; padding: 4px 12px; white-space: nowrap; }
+    .world-lock-note { margin-left: auto; font-size: 0.78rem; font-weight: 700; color: #94a3b8; }
+
+    .stage-path { display: flex; flex-wrap: wrap; align-items: flex-start; row-gap: 18px; }
+    .stage-wrap { display: flex; align-items: center; }
+    .stage-wrap:not(:last-child)::after {
+      content: ''; width: 16px; height: 4px; border-radius: 2px;
+      background: #d1fae5; margin: 0 3px 34px;
+    }
+    .stage-wrap.done:not(:last-child)::after { background: #34d399; }
+
+    .stage-node { width: 76px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; font-family: inherit; padding: 0; }
+    .stage-circle {
+      width: 58px; height: 58px; border-radius: 50%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 0.92rem; color: #fff; position: relative;
+      background: linear-gradient(135deg, #6366f1, #0ea5e9);
+      border: 3px solid #fff; box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+      transition: transform 0.16s;
+    }
+    .stage-node:hover .stage-circle { transform: scale(1.1); }
+    .stage-node.cleared .stage-circle { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16,185,129,0.4); }
+    .stage-node.locked { cursor: default; }
+    .stage-node.locked .stage-circle { background: #cbd5e1; box-shadow: none; }
+    .stage-node.next .stage-circle { animation: nextPulse 1.4s ease-in-out infinite; }
+    @keyframes nextPulse {
+      0%,100% { box-shadow: 0 4px 12px rgba(79,70,229,0.35), 0 0 0 0 rgba(99,102,241,0.45); }
+      50%     { box-shadow: 0 4px 12px rgba(79,70,229,0.35), 0 0 0 9px rgba(99,102,241,0); }
+    }
+    .stage-circle .st-icon { font-size: 0.78rem; line-height: 1; margin-top: 1px; }
+    .stage-crown { position: absolute; top: -14px; font-size: 15px; }
+    .stage-stars { font-size: 0.72rem; letter-spacing: 1px; color: #f59e0b; font-weight: 900; height: 14px; }
+    .stage-stars .off { color: #d1d5db; }
+    .stage-kind { font-size: 0.62rem; font-weight: 800; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+    .stage-kind.choice { background: #eef2ff; color: #4f46e5; }
+    .stage-kind.input  { background: #ecfdf5; color: #059669; }
+    .stage-kind.spot   { background: #fdf2f8; color: #be185d; }
+    .stage-node.locked .stage-kind { background: #f1f5f9; color: #94a3b8; }
+
+    footer { position: relative; z-index: 1; text-align: center; padding: 20px; color: #9ca3af; font-size: 0.8rem; border-top: 1px solid #d1fae5; }
+
+    /* ═══════════ ステージ画面 ═══════════ */
+    #stage-screen { display: none; flex-direction: column; min-height: 100vh; }
+    .quiz-header {
+      position: relative; z-index: 10;
+      background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0ea5e9 100%);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; box-shadow: 0 2px 16px rgba(5,150,105,0.25); gap: 8px;
+    }
+    .back-btn {
+      background: rgba(255,255,255,0.2); border: 1.5px solid rgba(255,255,255,0.35);
+      color: #fff; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+      padding: 7px 14px; border-radius: 99px; cursor: pointer; transition: background 0.18s; white-space: nowrap;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.3); }
+    .quiz-header-title { flex: 1; text-align: center; font-weight: 800; font-size: 0.9rem; color: #fff; padding: 0 4px; min-width: 0; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .timer-display {
+      background: rgba(0,0,0,0.25); border-radius: 99px; padding: 5px 14px;
+      font-size: 0.95rem; font-weight: 900; color: #fff;
+      font-variant-numeric: tabular-nums; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .header-count { color: rgba(255,255,255,0.85); font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+    .progress-wrap { position: relative; z-index: 10; height: 6px; background: #d1fae5; }
+    .progress-fill { height: 100%; border-radius: 0 4px 4px 0; background: linear-gradient(90deg, #059669, #0d9488, #0ea5e9); transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+
+    .quiz-main { flex: 1; position: relative; z-index: 1; max-width: 660px; width: 100%; margin: 0 auto; padding: 26px 18px; }
+    .quiz-card { background: #fff; border-radius: 24px; padding: 32px 28px; border: 2px solid #d1fae5; box-shadow: 0 8px 32px rgba(5,150,105,0.12); animation: slideIn 0.35s cubic-bezier(0.4,0,0.2,1); }
+    @keyframes slideIn { from{opacity:0;transform:translateX(28px);} to{opacity:1;transform:translateX(0);} }
+    @media (max-width: 480px) { .quiz-card { padding: 24px 18px; } }
+
+    /* ── ステージ開始カード ── */
+    .intro-kind { display: inline-block; font-size: 0.78rem; font-weight: 900; padding: 5px 14px; border-radius: 99px; margin-bottom: 12px; }
+    .intro-kind.choice { background: #eef2ff; color: #4f46e5; }
+    .intro-kind.input  { background: #ecfdf5; color: #059669; }
+    .intro-kind.spot   { background: #fdf2f8; color: #be185d; }
+    .intro-title { font-size: 1.35rem; font-weight: 900; margin-bottom: 4px; }
+    .intro-unit  { color: #6b7280; font-size: 0.9rem; margin-bottom: 20px; }
+    .intro-conds { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .intro-cond { display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; font-size: 0.86rem; font-weight: 700; }
+    .intro-cond .ic-star { color: #f59e0b; font-weight: 900; white-space: nowrap; }
+    .start-stage-btn {
+      width: 100%; padding: 16px; border-radius: 14px; border: none; cursor: pointer;
+      font-family: inherit; font-size: 1.05rem; font-weight: 900;
+      background: linear-gradient(135deg,#059669,#0d9488,#0ea5e9); color: #fff;
+      box-shadow: 0 4px 18px rgba(5,150,105,0.35); transition: opacity 0.18s, transform 0.14s;
+    }
+    .start-stage-btn:hover { opacity: 0.9; transform: scale(1.01); }
+
+    /* ── 問題表示 ── */
+    .q-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; color: #059669; text-transform: uppercase; margin-bottom: 14px; }
+    .q-text  { font-size: clamp(1.35rem,4vw,1.9rem); font-weight: 900; color: #1e1b4b; line-height: 1.5; margin-bottom: 26px; }
+
+    .choices { display: flex; flex-direction: column; gap: 11px; }
+    .choice-btn { display: flex; align-items: center; gap: 14px; padding: 15px 18px; border-radius: 14px; width: 100%; text-align: left; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; background: #f8fafc; border: 2px solid #e0e7ff; color: #1e1b4b; opacity: 0; animation: choiceIn 0.3s ease-out forwards; transition: transform 0.14s, border-color 0.16s, background 0.16s, box-shadow 0.16s; }
+    .choice-btn:hover:not(:disabled) { background: #ecfdf5; border-color: #059669; transform: translateX(6px); box-shadow: 0 4px 16px rgba(5,150,105,0.15); }
+    @keyframes choiceIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+    .choice-label { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; background: #d1fae5; color: #059669; transition: background 0.18s, color 0.18s; }
+    .choice-btn.correct { background: #d1fae5; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); animation: correctPop 0.35s ease-out; }
+    .choice-btn.correct .choice-label { background: #10b981; color: #fff; }
+    @keyframes correctPop { 0%{transform:scale(0.97);} 55%{transform:scale(1.04);} 100%{transform:scale(1);} }
+    .choice-btn.wrong { background: #fee2e2; border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.18); animation: shake 0.38s ease-out; }
+    .choice-btn.wrong .choice-label { background: #ef4444; color: #fff; }
+    @keyframes shake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-5px);} 80%{transform:translateX(5px);} }
+    .choice-btn.dimmed { opacity: 0.35; }
+
+    /* ── 間違い探し ── */
+    .spot-badge { display: inline-block; background: linear-gradient(135deg,#ec4899,#8b5cf6); color: #fff; font-size: 0.7rem; font-weight: 900; padding: 4px 10px; border-radius: 99px; margin-bottom: 10px; letter-spacing: 0.05em; }
+    .spot-prompt { font-size: 0.95rem; color: #6b7280; margin-bottom: 16px; line-height: 1.6; }
+    .spot-process { background: #fdf2f8; border: 2px solid #fbcfe8; border-radius: 14px; padding: 16px 18px; margin-bottom: 22px; }
+    .spot-line { font-size: 1.05rem; font-weight: 800; color: #1e1b4b; padding: 4px 0; line-height: 1.7; }
+    .spot-line .line-num { color: #ec4899; font-weight: 900; margin-right: 8px; }
+    .spot-choice { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: #f8fafc; border: 2px solid #e0e7ff; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 700; color: #1e1b4b; width: 100%; text-align: left; opacity: 0; animation: choiceIn 0.3s ease-out forwards; transition: transform 0.14s, border-color 0.16s, background 0.16s; }
+    .spot-choice:hover:not(:disabled) { background: #fdf2f8; border-color: #ec4899; transform: translateX(6px); }
+    .spot-choice .sc-label { width: 32px; height: 32px; border-radius: 8px; background: #fce7f3; color: #be185d; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .spot-choice.correct { background: #d1fae5; border-color: #10b981; }
+    .spot-choice.correct .sc-label { background: #10b981; color: #fff; }
+    .spot-choice.wrong { background: #fee2e2; border-color: #ef4444; animation: shake 0.38s ease-out; }
+    .spot-choice.wrong .sc-label { background: #ef4444; color: #fff; }
+    .spot-choice.dimmed { opacity: 0.35; }
+
+    /* ── 値・式 入力ステージ ── */
+    .input-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .ans-input {
+      flex: 1; min-width: 200px; max-width: 320px;
+      padding: 13px 16px; border-radius: 12px; border: 2px solid #c7d2fe;
+      font-size: 1.25rem; font-weight: 700; color: #1e1b4b;
+      font-family: 'Times New Roman', 'Georgia', 'Hiragino Mincho ProN', 'Yu Mincho', serif; font-style: italic;
+      background: #f8fafc; outline: none; transition: border-color 0.16s, box-shadow 0.16s;
+    }
+    .ans-input:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.15); background: #fff; }
+    .ans-input:disabled { background: #f1f5f9; color: #94a3b8; }
+    .ans-input.wrong-flash { animation: shake 0.38s ease-out; border-color: #ef4444; }
+    .input-mode-chip { font-size: 0.72rem; font-weight: 800; color: #059669; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 99px; padding: 4px 10px; white-space: nowrap; }
+
+    .solvepad { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; max-width: 460px; }
+    .pad-key {
+      min-width: 42px; height: 42px; padding: 0 10px;
+      border-radius: 10px; border: 2px solid #e0e7ff; background: #fff;
+      font-family: inherit; font-size: 1.02rem; font-weight: 800; color: #1e1b4b;
+      cursor: pointer; transition: all 0.12s;
+    }
+    .pad-key:hover { border-color: #059669; background: #ecfdf5; }
+    .pad-key:active { transform: scale(0.92); }
+    .pad-key.fn { background: #eef2ff; color: #4f46e5; }
+    .pad-key.bs { min-width: 52px; background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .solvepad-hint { font-size: 0.74rem; color: #9ca3af; margin-bottom: 16px; line-height: 1.6; }
+
+    .check-btn {
+      padding: 14px 28px; border-radius: 14px; border: none; cursor: pointer;
+      font-family: inherit; font-size: 1rem; font-weight: 900;
+      background: linear-gradient(135deg,#059669,#10b981); color: #fff;
+      box-shadow: 0 4px 16px rgba(16,185,129,0.35); transition: opacity 0.18s, transform 0.14s;
+    }
+    .check-btn:hover { opacity: 0.9; transform: scale(1.02); }
+    .check-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+    .giveup-btn {
+      display: none; padding: 14px 18px; border-radius: 14px; cursor: pointer;
+      font-family: inherit; font-size: 0.88rem; font-weight: 800;
+      background: #fff; color: #b45309; border: 2px solid #fcd34d; transition: all 0.16s;
+    }
+    .giveup-btn.show { display: inline-block; }
+    .giveup-btn:hover { background: #fffbeb; }
+    .verdict { display: none; margin-top: 16px; font-size: 1.15rem; font-weight: 900; }
+    .verdict.ok { display: block; color: #059669; animation: correctPop 0.35s ease-out; }
+    .verdict.ng { display: block; color: #dc2626; }
+    .reveal-answer { margin-top: 8px; font-size: 1rem; font-weight: 800; color: #1e1b4b; }
+    .reveal-answer b { color: #059669; }
+
+    .hint-box { display: none; margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: #fffbeb; border: 1.5px solid #fcd34d; }
+    .hint-box.show { display: block; animation: fadeIn 0.28s ease-out; }
+    .hint-label { font-size: 0.72rem; font-weight: 800; color: #d97706; margin-bottom: 4px; }
+    .hint-text  { font-size: 0.9rem; color: #92400e; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    .next-btn { display: none; margin-top: 22px; width: 100%; padding: 15px; border-radius: 14px; border: none; cursor: pointer; font-family: inherit; font-size: 1rem; font-weight: 900; background: linear-gradient(135deg,#059669,#0d9488,#0ea5e9); color: #fff; box-shadow: 0 4px 18px rgba(5,150,105,0.35); transition: opacity 0.18s, transform 0.14s; animation: fadeIn 0.3s ease-out; }
+    .next-btn.show { display: block; }
+    .next-btn:hover { opacity: 0.9; transform: scale(1.01); }
+
+    /* メモボタン（memo-board.js 用のトーンだけ用意） */
+    .tool-btn {
+      padding: 9px 22px; border-radius: 99px;
+      font-weight: 800; font-size: 0.88rem; font-family: inherit;
+      border: 2px solid #a7f3d0; background: #fff; color: #059669;
+      cursor: pointer; transition: all 0.18s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .tool-btn:hover { border-color: #059669; background: #ecfdf5; }
+
+    /* ── ステージ結果 ── */
+    .result-card { display: none; background: #fff; border-radius: 24px; padding: 40px 28px; border: 2px solid #d1fae5; box-shadow: 0 8px 40px rgba(5,150,105,0.14); text-align: center; animation: zoomIn 0.45s cubic-bezier(0.4,0,0.2,1); }
+    @keyframes zoomIn { from{opacity:0;transform:scale(0.88);} to{opacity:1;transform:scale(1);} }
+    .result-stars { display: flex; justify-content: center; gap: 10px; margin-bottom: 18px; }
+    .rstar { font-size: 3.2rem; color: #e5e7eb; transition: transform 0.2s; }
+    .rstar.earned { color: #f59e0b; animation: starPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both; text-shadow: 0 4px 14px rgba(245,158,11,0.5); }
+    @keyframes starPop { 0%{transform:scale(0) rotate(-40deg);opacity:0;} 100%{transform:scale(1) rotate(0);opacity:1;} }
+    .result-title { font-size: 1.6rem; font-weight: 900; margin-bottom: 6px; }
+    .result-msg { color: #6b7280; margin-bottom: 24px; font-size: 0.92rem; }
+    .score-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 26px; }
+    .score-box  { border-radius: 16px; padding: 16px 8px; border: 2px solid #e0e7ff; background: #f8fafc; }
+    .score-num  { font-size: 1.7rem; font-weight: 900; }
+    .score-num.pct  { color: #059669; }
+    .score-num.ok   { color: #10b981; }
+    .score-num.tm   { color: #0284c7; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+    .score-label    { font-size: 0.72rem; color: #9ca3af; margin-top: 4px; }
+    .result-btns { display: flex; flex-direction: column; gap: 10px; }
+    @media(min-width:480px){ .result-btns{ flex-direction: row; } }
+    .btn-next-stage { flex: 1.4; padding: 15px; border-radius: 14px; border: none; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 900; background: linear-gradient(135deg,#059669,#0d9488,#0ea5e9); color: #fff; box-shadow: 0 4px 16px rgba(5,150,105,0.35); transition: opacity 0.18s, transform 0.14s; }
+    .btn-retry { flex: 1; padding: 15px; border-radius: 14px; border: none; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 900; background: linear-gradient(135deg,#6366f1,#0ea5e9); color: #fff; box-shadow: 0 4px 16px rgba(99,102,241,0.35); transition: opacity 0.18s, transform 0.14s; }
+    .btn-map { flex: 1; padding: 15px; border-radius: 14px; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 900; background: #f0fdf4; color: #059669; border: 2px solid #a7f3d0; transition: opacity 0.18s, transform 0.14s; }
+    .btn-next-stage:hover, .btn-retry:hover, .btn-map:hover { opacity: 0.88; transform: scale(1.02); }
+    .result-nyake { font-size: 0.9rem; font-weight: 700; color: #065f46; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 14px; padding: 10px 16px; margin-bottom: 22px; display: inline-block; }
+
+    /* ── トースト ── */
+    #park-toast {
+      position: fixed; top: 72px; left: 50%; transform: translateX(-50%) translateY(-12px);
+      background: linear-gradient(135deg, #059669, #0d9488);
+      color: #fff; border-radius: 99px; padding: 10px 26px;
+      font-size: 0.95rem; font-weight: 900;
+      box-shadow: 0 4px 20px rgba(5,150,105,0.5);
+      z-index: 400; opacity: 0; pointer-events: none;
+      transition: opacity 0.22s, transform 0.22s;
+    }
+    #park-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <canvas id="confetti-canvas"></canvas>
+  <div class="math-bg" id="math-bg"></div>
+  <div id="park-toast"></div>
+
+  <!-- ══════════════ ワールドマップ ══════════════ -->
+  <div id="map-screen">
+    <header class="park-hero">
+      <a class="hero-back" href="index.html">← 問題集へ</a>
+      <span class="hero-icon">🎡</span>
+      <h1>数学パーク</h1>
+      <p>ステージをクリアして、つぎの道をひらこう！</p>
+    </header>
+    <div class="nyake">
+      <div class="nyake-face">🐱</div>
+      <div class="nyake-bubble" id="nyake-say">ようこそ 数学パークへ！ステージを クリアすると つぎの道が ひらくにゃ🐾</div>
+    </div>
+    <div class="park-summary">
+      <div class="psum"><div class="psum-num" id="sum-stars">★0</div><div class="psum-label">あつめた星</div></div>
+      <div class="psum"><div class="psum-num" id="sum-cleared">0/0</div><div class="psum-label">クリアしたステージ</div></div>
+      <div class="psum"><div class="psum-num" id="sum-worlds">0/0</div><div class="psum-label">制覇したワールド</div></div>
+    </div>
+    <div id="worlds-container"></div>
+    <footer>🎡 数学パーク — ワールドは随時オープン ✏️</footer>
+  </div>
+
+  <!-- ══════════════ ステージ画面 ══════════════ -->
+  <div id="stage-screen">
+    <header class="quiz-header">
+      <button class="back-btn" onclick="backToMap()">← マップへ</button>
+      <div class="quiz-header-title" id="stage-title"></div>
+      <div class="header-right">
+        <div class="timer-display" id="timer-display" style="display:none;">⏱ 0:00.0</div>
+        <div class="header-count" id="header-count"></div>
+      </div>
+    </header>
+    <div class="progress-wrap"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+
+    <main class="quiz-main">
+
+      <!-- ステージ開始カード -->
+      <div class="quiz-card" id="intro-card" style="display:none;">
+        <span class="intro-kind" id="intro-kind"></span>
+        <div class="intro-title" id="intro-stage-name"></div>
+        <div class="intro-unit" id="intro-unit-name"></div>
+        <div class="intro-conds" id="intro-conds"></div>
+        <button class="start-stage-btn" onclick="startStage()">スタート！ 🚀</button>
+      </div>
+
+      <!-- 問題カード -->
+      <div class="quiz-card" id="quiz-card" style="display:none;">
+        <div class="q-label" id="q-label"></div>
+        <p class="q-text" id="q-text"></p>
+
+        <!-- 4択・間違い探し -->
+        <div class="choices" id="choices"></div>
+
+        <!-- 値・式入力 -->
+        <div id="input-area" style="display:none;">
+          <div class="input-row">
+            <input class="ans-input" id="ans-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <span class="input-mode-chip" id="input-mode-chip"></span>
+          </div>
+          <div class="solvepad" id="solvepad"></div>
+          <div class="solvepad-hint" id="solvepad-hint"></div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="check-btn" id="check-btn" onclick="checkInput()">○ こたえあわせ</button>
+            <button class="giveup-btn" id="giveup-btn" onclick="giveUp()">答えを見る 👀</button>
+          </div>
+          <div class="verdict" id="verdict"></div>
+          <div class="reveal-answer" id="reveal-answer" style="display:none;"></div>
+        </div>
+
+        <div class="hint-box" id="hint-box">
+          <div class="hint-label">💡 ヒント</div>
+          <div class="hint-text" id="hint-text"></div>
+        </div>
+        <button class="next-btn" id="next-btn" onclick="nextQuestion()"></button>
+
+        <!-- ✏️ 手書き計算メモ（判定には使わない・考えるための余白） -->
+        <div style="margin-top:20px; border-top:2px dotted #d1fae5; padding-top:14px;">
+          <button class="tool-btn" id="memo-toggle" type="button">✏️ 計算メモ（手書き）</button>
+          <div id="memo-box"></div>
+        </div>
+      </div>
+
+      <!-- 結果カード -->
+      <div class="result-card" id="result-card">
+        <div class="result-stars">
+          <span class="rstar" id="rstar1">★</span>
+          <span class="rstar" id="rstar2">★</span>
+          <span class="rstar" id="rstar3">★</span>
+        </div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-msg" id="result-msg"></div>
+        <div class="result-nyake" id="result-nyake"></div>
+        <div class="score-grid">
+          <div class="score-box"><div class="score-num pct" id="res-pct">0%</div><div class="score-label">正解率</div></div>
+          <div class="score-box"><div class="score-num ok" id="res-correct">0</div><div class="score-label">正解</div></div>
+          <div class="score-box"><div class="score-num tm" id="res-time">-</div><div class="score-label">タイム</div></div>
+        </div>
+        <div class="result-btns">
+          <button class="btn-next-stage" id="btn-next-stage" onclick="gotoNextStage()">つぎのステージへ →</button>
+          <button class="btn-retry" onclick="retryStage()">もう一回 🔄</button>
+          <button class="btn-map" onclick="backToMap()">マップへ 🗺</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="quiz-data.js"></script>
+  <script src="memo-board.js"></script>
+  <script>
+    'use strict';
+
+    /* ════════════════ 共通ユーティリティ ════════════════ */
+
+    /* 浮遊記号 */
+    (function () {
+      const symbols = ['＋','－','×','÷','＝','²','π','√','★','🎈','🎡','△'];
+      const cols = ['#34d399','#6ee7b7','#7dd3fc','#fbbf24','#f472b6','#a7f3d0'];
+      const bg = document.getElementById('math-bg');
+      for (let i = 0; i < 24; i++) {
+        const s = document.createElement('span');
+        s.textContent = symbols[i % symbols.length];
+        s.style.cssText = `left:${Math.random()*100}%;font-size:${16+Math.random()*32}px;color:${cols[~~(Math.random()*cols.length)]};opacity:0;animation-duration:${10+Math.random()*14}s;animation-delay:${-Math.random()*20}s;`;
+        bg.appendChild(s);
+      }
+    })();
+
+    /* 花火（index.html と同実装） */
+    const cvs = document.getElementById('confetti-canvas');
+    const cctx = cvs.getContext('2d');
+    let parts = [];
+    function resizeC() { cvs.width = innerWidth; cvs.height = innerHeight; }
+    resizeC(); addEventListener('resize', resizeC);
+    function launchConfetti(x, y) {
+      const pal = ['#34d399','#60a5fa','#fbbf24','#f472b6','#fff','#059669','#a78bfa'];
+      for (let i = 0; i < 70; i++) {
+        const a = Math.random()*Math.PI*2, sp = 3+Math.random()*7;
+        parts.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-5, r:3+Math.random()*6, color:pal[~~(Math.random()*pal.length)], life:1, decay:0.016+Math.random()*0.012, g:0.2 });
+      }
+      raf();
+    }
+    function raf() {
+      cctx.clearRect(0,0,cvs.width,cvs.height);
+      parts = parts.filter(p=>p.life>0);
+      parts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.life-=p.decay; p.vx*=0.98; cctx.globalAlpha=Math.max(0,p.life); cctx.fillStyle=p.color; cctx.beginPath(); cctx.arc(p.x,p.y,p.r,0,Math.PI*2); cctx.fill(); });
+      cctx.globalAlpha=1;
+      if (parts.length) requestAnimationFrame(raf);
+    }
+
+    /* 数式レンダリング（index.html と同実装：分数＋教科書風の変数表記） */
+    function wrapVars(text) {
+      return text.replace(/[A-Za-z]+/g, m => `<span class="mn">${m}</span>`);
+    }
+    function renderMath(str) {
+      const html = String(str).replace(/\[\[([^\/\]]+)\/([^\]]+)\]\]/g, (_, num, den) =>
+        `<span class="frac"><span class="frac-num">${num}</span><span class="frac-den">${den}</span></span>`
+      );
+      return html.split(/(<[^>]+>)/g).map(seg => seg.charAt(0) === '<' ? seg : wrapVars(seg)).join('');
+    }
+
+    function formatTime(ms) {
+      const totalSec = ms / 1000;
+      const m = Math.floor(totalSec / 60);
+      const s = Math.floor(totalSec % 60);
+      const d = Math.floor((ms % 1000) / 100);
+      return `${m}:${String(s).padStart(2,'0')}.${d}`;
+    }
+
+    const shuffle = a => [...a].sort(() => Math.random() - 0.5);
+    const LABELS = ['A','B','C','D'];
+
+    function parkToast(msg) {
+      const t = document.getElementById('park-toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove('show'), 2400);
+    }
+
+    /* ════════════════ 解答の正規化・判定（まなびポータル Code.js から移植） ════════════════ */
+
+    /* 全角→半角の正規化。NFKCで ０-９・ａ-ｚ・＋－＝．／（） 等を半角化し、U+2212(−) も - に寄せる。
+       ※NFKC は ² → 2 / ³ → 3 にも畳むので、比較の直前に両辺へかける（入力欄の表示には使わない） */
+    function z2h(s) {
+      s = String(s == null ? '' : s);
+      try { s = s.normalize('NFKC'); } catch (e) {}
+      return s.replace(/−/g, '-');
+    }
+    /* データの分数記法 [[a/b]] → a/b （判定用） */
+    function stripFracMark(s) {
+      return String(s).replace(/\[\[([^\[\]]+?)\/([^\]]+?)\]\]/g, '$1/$2');
+    }
+    /* 数値解答を数に変換。「1/2」「-3/4」の分数形も計算（1/2 と 0.5 は同じ扱い） */
+    function numVal(s) {
+      s = z2h(s).replace(/\s/g, '');
+      const m = s.match(/^([+-]?\d+(?:\.\d+)?)\/([+-]?\d+(?:\.\d+)?)$/);
+      if (m) return Number(m[1]) / Number(m[2]);
+      return Number(s);
+    }
+    /* 式解答の正規化（比較用）：全角→半角・小文字化・空白除去・^除去（x^2 と x² を同一視） */
+    function normExpr(s) {
+      return z2h(stripFracMark(s)).toLowerCase().replace(/[\s　]/g, '').replace(/\^/g, '').replace(/\(\(|\)\)/g, '');
+    }
+    /* 入力解答の正誤判定 */
+    function judgeInput(mode, correct, given) {
+      if (mode === 'number') {
+        const av = numVal(stripFracMark(correct)), gv = numVal(given);
+        return isFinite(av) && isFinite(gv) && Math.abs(av - gv) < 1e-9;
+      }
+      return normExpr(correct) === normExpr(given);
+    }
+
+    /* 解答の形式分類：number（数値・分数・小数）／ expr（x,y,a,b の式）／ null（変換不可→4択のまま） */
+    function classifyAnswer(correct) {
+      const s = z2h(stripFracMark(correct)).replace(/\s/g, '');
+      if (/^[+-]?\d+(\.\d+)?(\/[+-]?\d+(\.\d+)?)?$/.test(s)) return 'number';
+      if (/^[0-9xyab+\-×÷=().²³√\/]+$/i.test(s) && /[xyab]/i.test(s) && s.length <= 18) return 'expr';
+      return null;
+    }
+
+    /* ════════════════ ワールド・ステージの生成 ════════════════ */
+
+    const GRADES = ['中学1年', '中学2年', '中学3年'];
+    const KIND_LABEL = { choice: '4たく', input: '⌨️ にゅうりょく', spot: '🔍 さがせ' };
+    const KIND_ICON  = { choice: '🅰', input: '⌨️', spot: '🔍' };
+    const PER_Q_MS   = { choice: 12000, input: 30000, spot: 40000 };
+
+    function inputPoolOf(unit) {
+      return unit.questions.filter(q => q.type !== 'spot' && classifyAnswer(q.correct));
+    }
+
+    function buildWorlds() {
+      const worlds = [];
+      for (const grade of GRADES) {
+        const chapters = new Map();
+        QUIZ_DATA.units.filter(u => u.grade === grade).forEach(u => {
+          const key = u.chapterOrder + '|' + u.chapter;
+          if (!chapters.has(key)) chapters.set(key, []);
+          chapters.get(key).push(u);
+        });
+        const sortedKeys = [...chapters.keys()].sort((a, b) => parseInt(a) - parseInt(b));
+        for (const key of sortedKeys) {
+          const units = chapters.get(key).sort((a, b) => (a.order || 0) - (b.order || 0));
+          const chapter = key.split('|')[1];
+          const stages = [];
+          let calcIdx = 0;
+          for (const u of units) {
+            const hasSpot = u.questions.some(q => q.type === 'spot');
+            if (hasSpot) {
+              const pool = u.questions.filter(q => q.type === 'spot');
+              stages.push({ id: u.id + '__s', kind: 'spot', unit: u, n: Math.min(pool.length, 5) });
+              continue;
+            }
+            const inputPool = inputPoolOf(u);
+            const capable = inputPool.length >= 8;
+            if (units.length <= 3) {
+              // 小さいワールド：同じ単元を「4択 → 入力」の2ステージに
+              stages.push({ id: u.id + '__c', kind: 'choice', unit: u, n: Math.min(u.quizCount || 10, 10) });
+              if (capable) stages.push({ id: u.id + '__i', kind: 'input', unit: u, n: 5 });
+            } else {
+              // 大きいワールド（正負の数）：単元ごとに 4択／入力を交互に
+              const kind = (calcIdx % 2 === 1 && capable) ? 'input' : 'choice';
+              stages.push({
+                id: u.id + (kind === 'input' ? '__i' : '__c'),
+                kind, unit: u,
+                n: kind === 'input' ? 5 : Math.min(u.quizCount || 10, 10)
+              });
+              calcIdx++;
+            }
+          }
+          worlds.push({ grade, chapter, units, stages, icon: units[0].icon || '📘' });
+        }
+      }
+      worlds.forEach((w, i) => {
+        w.num = i + 1;
+        w.stages.forEach((s, j) => { s.world = w; s.idx = j; s.label = `${w.num}-${j + 1}`; });
+      });
+      return worlds;
+    }
+
+    const WORLDS = buildWorlds();
+    const ALL_STAGES = WORLDS.flatMap(w => w.stages);
+
+    /* ════════════════ 進捗（localStorage・既存キーとは別系統） ════════════════ */
+
+    const STARS_KEY = 'mq_park_stars';
+    function loadStars() {
+      try { return JSON.parse(localStorage.getItem(STARS_KEY) || '{}'); } catch (e) { return {}; }
+    }
+    function starsOf(stageId) { return loadStars()[stageId] || 0; }
+    function saveStars(stageId, stars) {
+      try {
+        const all = loadStars();
+        if ((all[stageId] || 0) >= stars) return false;
+        all[stageId] = stars;
+        localStorage.setItem(STARS_KEY, JSON.stringify(all));
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function worldUnlocked(world) {
+      const sameGrade = WORLDS.filter(w => w.grade === world.grade);
+      const i = sameGrade.indexOf(world);
+      if (i === 0) return true; // 各学年の最初のワールドは最初からオープン
+      const prev = sameGrade[i - 1];
+      const lastStage = prev.stages[prev.stages.length - 1];
+      return starsOf(lastStage.id) >= 1;
+    }
+    function stageUnlocked(stage) {
+      if (!worldUnlocked(stage.world)) return false;
+      if (stage.idx === 0) return true;
+      return starsOf(stage.world.stages[stage.idx - 1].id) >= 1;
+    }
+    function worldCleared(world) {
+      return world.stages.every(s => starsOf(s.id) >= 1);
+    }
+
+    /* ════════════════ ワールドマップ描画 ════════════════ */
+
+    function renderMap() {
+      const container = document.getElementById('worlds-container');
+      const all = loadStars();
+      let totalStars = 0, clearedStages = 0, clearedWorlds = 0;
+      let nextFound = false;
+      let html = '';
+      let currentGrade = '';
+
+      for (const w of WORLDS) {
+        if (w.grade !== currentGrade) {
+          currentGrade = w.grade;
+          html += `<div class="grade-heading">🚩 ${w.grade} エリア</div>`;
+        }
+        const unlockedW = worldUnlocked(w);
+        const wStars = w.stages.reduce((s, st) => s + (all[st.id] || 0), 0);
+        totalStars += wStars;
+        if (worldCleared(w)) clearedWorlds++;
+
+        html += `<div class="world-card${unlockedW ? '' : ' locked-world'}">
+          <div class="world-head">
+            <div class="world-icon">${unlockedW ? w.icon : '🔒'}</div>
+            <div>
+              <div class="world-name">ワールド${w.num}　${w.chapter}</div>
+              <div class="world-sub">${w.grade}・全${w.stages.length}ステージ</div>
+            </div>
+            ${unlockedW
+              ? `<div class="world-stars">★ ${wStars} / ${w.stages.length * 3}</div>`
+              : `<div class="world-lock-note">🔒 前のワールドをクリアでオープン</div>`}
+          </div>
+          <div class="stage-path">`;
+
+        for (const st of w.stages) {
+          const stars = all[st.id] || 0;
+          if (stars >= 1) clearedStages++;
+          const unlocked = stageUnlocked(st);
+          const isNext = unlocked && stars === 0 && !nextFound;
+          if (isNext) nextFound = true;
+          const cls = ['stage-node', stars >= 1 ? 'cleared' : '', unlocked ? '' : 'locked', isNext ? 'next' : ''].join(' ');
+          const starTxt = unlocked
+            ? `<span>${'★'.repeat(stars)}</span><span class="off">${'★'.repeat(Math.max(0, 3 - stars))}</span>`
+            : '';
+          const isBoss = st.idx === w.stages.length - 1;
+          html += `<div class="stage-wrap${stars >= 1 ? ' done' : ''}">
+            <button class="${cls}" ${unlocked ? `onclick="openStage('${st.id}')"` : 'disabled'} aria-label="ステージ${st.label}">
+              <span class="stage-circle">
+                ${isBoss ? '<span class="stage-crown">👑</span>' : ''}
+                <span>${unlocked ? st.label : '🔒'}</span>
+                <span class="st-icon">${unlocked ? KIND_ICON[st.kind] : ''}</span>
+              </span>
+              <span class="stage-stars">${starTxt}</span>
+              <span class="stage-kind ${st.kind}">${KIND_LABEL[st.kind]}</span>
+            </button>
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+      container.innerHTML = html;
+
+      document.getElementById('sum-stars').textContent = `★${totalStars}`;
+      document.getElementById('sum-cleared').textContent = `${clearedStages}/${ALL_STAGES.length}`;
+      document.getElementById('sum-worlds').textContent = `${clearedWorlds}/${WORLDS.length}`;
+
+      const say = document.getElementById('nyake-say');
+      if (clearedStages === 0) say.textContent = 'ようこそ 数学パークへ！ステージを クリアすると つぎの道が ひらくにゃ🐾';
+      else if (clearedStages >= ALL_STAGES.length) say.textContent = '全ステージ制覇…！キミは もう 数学パークの マスターだにゃ👑✨';
+      else if (totalStars >= clearedStages * 3) say.textContent = `★${totalStars}こ、ぜんぶ ★3の パーフェクトだにゃ…！すごいにゃ🎉`;
+      else say.textContent = `★${totalStars}こ あつめたにゃ！★3を ねらって もう一回 あそぶのも アリだにゃ🔥`;
+    }
+
+    /* ════════════════ ステージ進行 ════════════════ */
+
+    let stage = null, questions = [], current = 0, correctCount = 0;
+    let answered = false, hadMistake = false, wrongTries = 0;
+    let stageStartTs = 0, elapsedMs = 0, timerInterval = null;
+
+    function openStage(stageId) {
+      stage = ALL_STAGES.find(s => s.id === stageId);
+      if (!stage) return;
+      document.getElementById('map-screen').style.display = 'none';
+      document.getElementById('stage-screen').style.display = 'flex';
+      document.getElementById('quiz-card').style.display = 'none';
+      document.getElementById('result-card').style.display = 'none';
+      document.getElementById('intro-card').style.display = 'block';
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('header-count').textContent = '';
+      document.getElementById('timer-display').style.display = 'none';
+      document.getElementById('stage-title').textContent = `ステージ ${stage.label}`;
+
+      const kindEl = document.getElementById('intro-kind');
+      kindEl.className = 'intro-kind ' + stage.kind;
+      kindEl.textContent = { choice: '🅰 4たくステージ', input: '⌨️ 入力ステージ（自分で答えを打ちこむ）', spot: '🔍 間違いさがしステージ' }[stage.kind];
+      document.getElementById('intro-stage-name').textContent = `ステージ ${stage.label}`;
+      document.getElementById('intro-unit-name').textContent = `${stage.unit.title}（全${stage.n}問）`;
+      const limit = formatTime(stage.n * PER_Q_MS[stage.kind]);
+      const cur = starsOf(stage.id);
+      document.getElementById('intro-conds').innerHTML =
+        `<div class="intro-cond"><span class="ic-star">★</span><span>8割以上 正解で クリア（つぎのステージが ひらく）</span></div>` +
+        `<div class="intro-cond"><span class="ic-star">★★</span><span>全問正解で ゲット</span></div>` +
+        `<div class="intro-cond"><span class="ic-star">★★★</span><span>全問正解 ＆ タイム ${limit} 以内</span></div>` +
+        (cur > 0 ? `<div class="intro-cond" style="background:#fffbeb;border-color:#fcd34d;"><span class="ic-star">🏅</span><span>いまの記録：${'★'.repeat(cur)}${'☆'.repeat(3-cur)}</span></div>` : '');
+      window.scrollTo(0, 0);
+    }
+
+    function startStage() {
+      if (stage.kind === 'spot') {
+        questions = shuffle(stage.unit.questions.filter(q => q.type === 'spot')).slice(0, stage.n);
+      } else if (stage.kind === 'input') {
+        questions = shuffle(inputPoolOf(stage.unit)).slice(0, stage.n)
+          .map(q => Object.assign({}, q, { inputMode: classifyAnswer(q.correct) }));
+      } else {
+        questions = shuffle(stage.unit.questions.filter(q => q.type !== 'spot')).slice(0, stage.n);
+      }
+      current = 0; correctCount = 0;
+      document.getElementById('intro-card').style.display = 'none';
+      document.getElementById('quiz-card').style.display = 'block';
+      // タイマー開始
+      stageStartTs = performance.now();
+      const tEl = document.getElementById('timer-display');
+      tEl.style.display = 'block';
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        elapsedMs = performance.now() - stageStartTs;
+        tEl.textContent = '⏱ ' + formatTime(elapsedMs);
+      }, 100);
+      showQuestion();
+    }
+
+    function showQuestion() {
+      answered = false; hadMistake = false; wrongTries = 0;
+      if (window.MathMemo) MathMemo.onQuestionChange(); // 問題を移動したら手書きメモをクリア
+      const q = questions[current], total = questions.length;
+      document.getElementById('header-count').textContent = `${current + 1} / ${total}`;
+      document.getElementById('q-label').textContent = `ステージ ${stage.label} ・ 問題 ${current + 1}`;
+      document.getElementById('progress-fill').style.width = `${current / total * 100}%`;
+
+      const choicesEl = document.getElementById('choices');
+      const inputArea = document.getElementById('input-area');
+      document.getElementById('hint-box').classList.remove('show');
+      const nb = document.getElementById('next-btn');
+      nb.classList.remove('show');
+      nb.textContent = current + 1 < total ? '次の問題へ →' : '結果を見る 🎉';
+
+      if (stage.kind === 'spot') {
+        inputArea.style.display = 'none';
+        document.getElementById('q-text').innerHTML =
+          `<div class="spot-badge">🔍 思考力問題（間違い探し）</div>` +
+          `<div class="spot-prompt">${renderMath(q.prompt)}</div>` +
+          `<div class="spot-process">` +
+            q.process.map((line, i) => `<div class="spot-line"><span class="line-num">${i + 1}.</span>${renderMath(line)}</div>`).join('') +
+          `</div>`;
+        choicesEl.innerHTML = q.process.map((_, i) => {
+          const lineNum = i + 1;
+          return `<button class="spot-choice" id="c${i}" style="animation-delay:${i * 0.07}s" onclick="pickSpot(${lineNum},${q.correctLine},this)">
+            <span class="sc-label">${lineNum}</span><span>${lineNum}行目が間違い</span>
+          </button>`;
+        }).join('');
+      } else if (stage.kind === 'input') {
+        choicesEl.innerHTML = '';
+        inputArea.style.display = 'block';
+        document.getElementById('q-text').innerHTML = renderMath(q.q);
+        setupInput(q);
+      } else {
+        inputArea.style.display = 'none';
+        document.getElementById('q-text').innerHTML = renderMath(q.q);
+        const sc = shuffle(q.choices);
+        const ci = sc.indexOf(q.correct);
+        choicesEl.innerHTML = sc.map((c, i) =>
+          `<button class="choice-btn" id="c${i}" style="animation-delay:${i * 0.07}s" onclick="pick(${i},${ci},this)">
+            <span class="choice-label">${LABELS[i]}</span><span>${renderMath(c)}</span>
+          </button>`
+        ).join('');
+      }
+
+      const card = document.getElementById('quiz-card');
+      card.style.animation = 'none';
+      requestAnimationFrame(() => { card.style.animation = 'slideIn 0.35s cubic-bezier(0.4,0,0.2,1)'; });
+    }
+
+    /* ── 4択 ── */
+    function pick(idx, correctIdx, btn) {
+      if (answered) return;
+      if (idx === correctIdx) {
+        answered = true;
+        if (!hadMistake) correctCount++;
+        document.querySelectorAll('.choice-btn').forEach((b, i) => {
+          b.disabled = true;
+          if (i === correctIdx) b.classList.add('correct');
+          else b.classList.add('dimmed');
+        });
+        if (!hadMistake) { const r = btn.getBoundingClientRect(); launchConfetti(r.left + r.width / 2, r.top + r.height / 2); }
+        document.getElementById('hint-box').classList.remove('show');
+        setTimeout(() => document.getElementById('next-btn').classList.add('show'), 380);
+      } else {
+        hadMistake = true;
+        btn.disabled = true;
+        btn.classList.add('wrong');
+        const q = questions[current];
+        if (q.hint) { document.getElementById('hint-text').innerHTML = renderMath(q.hint); document.getElementById('hint-box').classList.add('show'); }
+      }
+    }
+
+    /* ── 間違い探し ── */
+    function pickSpot(pickedLine, correctLine, btn) {
+      if (answered) return;
+      if (pickedLine === correctLine) {
+        answered = true;
+        if (!hadMistake) correctCount++;
+        document.querySelectorAll('.spot-choice').forEach((b, i) => {
+          b.disabled = true;
+          if (i + 1 === correctLine) b.classList.add('correct');
+          else b.classList.add('dimmed');
+        });
+        if (!hadMistake) { const r = btn.getBoundingClientRect(); launchConfetti(r.left + r.width / 2, r.top + r.height / 2); }
+        document.getElementById('hint-box').classList.remove('show');
+        setTimeout(() => document.getElementById('next-btn').classList.add('show'), 380);
+      } else {
+        hadMistake = true;
+        btn.disabled = true;
+        btn.classList.add('wrong');
+        const q = questions[current];
+        if (q.hint) { document.getElementById('hint-text').innerHTML = renderMath(q.hint); document.getElementById('hint-box').classList.add('show'); }
+      }
+    }
+
+    /* ── 値・式入力（まなびポータルの solvepad / padPut / padBS / solveNumOnly を移植） ── */
+
+    const PAD_NUM  = ['1','2','3','4','5','6','7','8','9','0','.','/','-'];
+    const PAD_EXPR = ['1','2','3','4','5','6','7','8','9','0','+','-','×','÷','=','.','/','(',')'];
+    const PAD_EXPR_FN = [['x','x'],['y','y'],['a','a'],['b','b'],['x²','²'],['x³','³'],['√▢','√( )']];
+
+    function ansInput() { return document.getElementById('ans-input'); }
+
+    /* キーボード入力もパッドにある文字しか通さないフィルタ（ユーザー決定）
+       数値：0-9 . / -（全角はNFKCで半角へ）／ 式：0-9 x y a b + - × ÷ = . / ( ) ² ³ √ */
+    function filterNum(s) {
+      s = String(s == null ? '' : s);
+      try { s = s.normalize('NFKC'); } catch (e) {}
+      return s.replace(/−/g, '-').replace(/[^0-9.\/\-]/g, '');
+    }
+    function filterExpr(s) {
+      s = String(s == null ? '' : s);
+      // ²³ を保ったまま全角英数字・記号だけ半角化（NFKC を全体にかけると ² が 2 になって表示が崩れるため1文字ずつ）
+      s = s.replace(/[０-９ａ-ｚＡ-Ｚ＋－＝．／（）ｘｙａｂ]/g, ch => ch.normalize('NFKC'));
+      s = s.replace(/−/g, '-').replace(/[＊*]/g, '×');
+      s = s.replace(/[A-Z]/g, ch => ch.toLowerCase());
+      return s.replace(/[^0-9xyab+\-×÷=.\/()²³√ ]/g, '');
+    }
+
+    function setupInput(q) {
+      const el = ansInput();
+      el.value = '';
+      el.disabled = false;
+      el.classList.remove('wrong-flash');
+      el.placeholder = q.inputMode === 'number' ? '数を入力' : '式を入力';
+      document.getElementById('input-mode-chip').textContent = q.inputMode === 'number' ? '🔢 数で答える' : '📝 式で答える';
+      document.getElementById('check-btn').disabled = false;
+      document.getElementById('giveup-btn').classList.remove('show');
+      const v = document.getElementById('verdict');
+      v.className = 'verdict'; v.textContent = '';
+      document.getElementById('reveal-answer').style.display = 'none';
+
+      // 入力パッド
+      const pad = document.getElementById('solvepad');
+      const keys = (q.inputMode === 'number' ? PAD_NUM : PAD_EXPR)
+        .map(k => `<button type="button" class="pad-key" onmousedown="event.preventDefault()" onclick="padPut('${k === '\\' ? '\\\\' : k}')">${k}</button>`);
+      if (q.inputMode !== 'number') {
+        keys.push(...PAD_EXPR_FN.map(p => `<button type="button" class="pad-key fn" onmousedown="event.preventDefault()" onclick="padPut('${p[1]}')">${p[0]}</button>`));
+      }
+      keys.push(`<button type="button" class="pad-key bs" title="1文字けす" onmousedown="event.preventDefault()" onclick="padBS()">⌫</button>`);
+      pad.innerHTML = keys.join('');
+      document.getElementById('solvepad-hint').textContent = q.inputMode === 'number'
+        ? 'ボタンでも キーボードでも 入力できるよ（分数は 1/2 の形・マイナスは -）'
+        : '分数は 1/2 の形でOK。累乗は x² ボタン（x のあとに押す）。入力できるのはパッドにある文字だけだよ';
+    }
+
+    /* カーソル位置に挿入（まなびポータル padPut の移植） */
+    function padPut(tok) {
+      const el = ansInput();
+      if (el.disabled) return;
+      const s = el.selectionStart != null ? Math.min(el.selectionStart, el.value.length) : el.value.length;
+      const e = el.selectionEnd != null ? Math.min(el.selectionEnd, el.value.length) : el.value.length;
+      let caret;
+      if (tok === '√( )') {
+        const sel = el.value.slice(s, e); // 式を選んでから押すと √( ) で囲める
+        el.value = el.value.slice(0, s) + '√( ' + sel + ' )' + el.value.slice(e);
+        caret = s + 3 + sel.length;
+      } else {
+        el.value = el.value.slice(0, s) + tok + el.value.slice(e);
+        caret = s + tok.length;
+      }
+      el.focus();
+      el.setSelectionRange(caret, caret);
+    }
+    function padBS() {
+      const el = ansInput();
+      if (el.disabled) return;
+      const s = el.selectionStart != null ? Math.min(el.selectionStart, el.value.length) : el.value.length;
+      const e = el.selectionEnd != null ? Math.min(el.selectionEnd, el.value.length) : el.value.length;
+      const from = s === e ? Math.max(0, s - 1) : s;
+      el.value = el.value.slice(0, from) + el.value.slice(e);
+      el.focus();
+      el.setSelectionRange(from, from);
+    }
+
+    function applyInputFilter() {
+      const q = questions[current];
+      if (!q || stage.kind !== 'input') return;
+      const el = ansInput();
+      const f = q.inputMode === 'number' ? filterNum : filterExpr;
+      const filtered = f(el.value);
+      if (filtered !== el.value) {
+        const caret = (el.selectionStart || filtered.length) - (el.value.length - filtered.length);
+        el.value = filtered;
+        const c = Math.max(0, Math.min(filtered.length, caret));
+        try { el.setSelectionRange(c, c); } catch (e) {}
+      }
+    }
+
+    function checkInput() {
+      if (answered) return;
+      const q = questions[current];
+      const el = ansInput();
+      const given = el.value.trim();
+      if (!given) { parkToast('答えを入力してね ✋'); return; }
+      if (judgeInput(q.inputMode, q.correct, given)) {
+        answered = true;
+        if (!hadMistake) correctCount++;
+        el.disabled = true;
+        document.getElementById('check-btn').disabled = true;
+        document.getElementById('giveup-btn').classList.remove('show');
+        const v = document.getElementById('verdict');
+        v.className = 'verdict ok'; v.textContent = '◎ せいかい！';
+        document.getElementById('hint-box').classList.remove('show');
+        if (!hadMistake) { const r = el.getBoundingClientRect(); launchConfetti(r.left + r.width / 2, r.top + r.height / 2); }
+        setTimeout(() => document.getElementById('next-btn').classList.add('show'), 380);
+      } else {
+        hadMistake = true; wrongTries++;
+        el.classList.remove('wrong-flash');
+        requestAnimationFrame(() => el.classList.add('wrong-flash'));
+        const v = document.getElementById('verdict');
+        v.className = 'verdict ng'; v.textContent = '✕ おしい…もう一回！';
+        if (q.hint) { document.getElementById('hint-text').innerHTML = renderMath(q.hint); document.getElementById('hint-box').classList.add('show'); }
+        if (wrongTries >= 2) document.getElementById('giveup-btn').classList.add('show');
+      }
+    }
+
+    function giveUp() {
+      if (answered) return;
+      answered = true; hadMistake = true;
+      const q = questions[current];
+      const el = ansInput();
+      el.disabled = true;
+      document.getElementById('check-btn').disabled = true;
+      document.getElementById('giveup-btn').classList.remove('show');
+      const v = document.getElementById('verdict');
+      v.className = 'verdict ng'; v.textContent = '✕ ざんねん…';
+      const ra = document.getElementById('reveal-answer');
+      ra.style.display = 'block';
+      ra.innerHTML = `正しい答え：<b>${renderMath(q.correct)}</b>`;
+      document.getElementById('next-btn').classList.add('show');
+    }
+
+    function nextQuestion() {
+      current++;
+      current < questions.length ? showQuestion() : showResult();
+    }
+
+    /* ════════════════ 結果・★判定 ════════════════ */
+
+    function calcStars(correct, total, ms) {
+      const pct = correct / total;
+      if (pct < 0.8) return 0;
+      if (pct < 1) return 1;
+      return ms <= total * PER_Q_MS[stage.kind] ? 3 : 2;
+    }
+
+    function showResult() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      elapsedMs = performance.now() - stageStartTs;
+      document.getElementById('progress-fill').style.width = '100%';
+      document.getElementById('quiz-card').style.display = 'none';
+      if (window.MathMemo) MathMemo.close();
+
+      const total = questions.length;
+      const stars = calcStars(correctCount, total, elapsedMs);
+      const improved = saveStars(stage.id, stars);
+
+      document.getElementById('res-pct').textContent = Math.round(correctCount / total * 100) + '%';
+      document.getElementById('res-correct').textContent = `${correctCount}/${total}`;
+      document.getElementById('res-time').textContent = formatTime(elapsedMs);
+
+      const titles = ['ざんねん…', 'ステージクリア！', 'パーフェクト！', 'スピードパーフェクト！！'];
+      const msgs = [
+        '正解率8割以上で クリアだよ。ヒントを読んで もう一回チャレンジ！',
+        'つぎのステージへの道が ひらいたよ！★3も ねらってみよう',
+        '全問正解！あとはスピードを きわめれば ★3だ',
+        '全問正解＆タイムクリア！文句なしの ★3！'
+      ];
+      const nyakeSay = [
+        '🐱 まちがいは 経験値だにゃ。リベンジ おうえんするにゃ🔥',
+        '🐱 やったにゃ！その調子だにゃ🎉',
+        '🐱 パーフェクトだにゃ…！おみごとだにゃ✨',
+        '🐱 はやい！つよい！パークいちの実力だにゃ👑'
+      ];
+      document.getElementById('result-title').textContent = titles[stars];
+      document.getElementById('result-msg').textContent = msgs[stars] + (improved ? '（記録を更新！）' : '');
+      document.getElementById('result-nyake').textContent = nyakeSay[stars];
+
+      // ★の演出
+      [1, 2, 3].forEach(i => {
+        const el = document.getElementById('rstar' + i);
+        el.classList.remove('earned');
+        if (i <= stars) setTimeout(() => el.classList.add('earned'), 300 + i * 380);
+      });
+      if (stars >= 1) setTimeout(() => launchConfetti(innerWidth / 2, innerHeight * 0.3), 500);
+      if (stars === 3) setTimeout(() => launchConfetti(innerWidth / 2, innerHeight * 0.25), 1600);
+
+      // つぎのステージボタン
+      const nextStage = findNextStage();
+      const nb = document.getElementById('btn-next-stage');
+      if (stars >= 1 && nextStage && stageUnlocked(nextStage)) {
+        nb.style.display = 'block';
+        nb.onclick = () => openStage(nextStage.id);
+      } else {
+        nb.style.display = 'none';
+      }
+
+      document.getElementById('result-card').style.display = 'block';
+      window.scrollTo(0, 0);
+    }
+
+    function findNextStage() {
+      const w = stage.world;
+      if (stage.idx + 1 < w.stages.length) return w.stages[stage.idx + 1];
+      const wi = WORLDS.indexOf(w);
+      for (let i = wi + 1; i < WORLDS.length; i++) {
+        if (WORLDS[i].stages.length) return WORLDS[i].stages[0];
+      }
+      return null;
+    }
+
+    function gotoNextStage() { /* onclick は showResult で差し替え */ }
+
+    function retryStage() {
+      document.getElementById('result-card').style.display = 'none';
+      openStage(stage.id);
+    }
+
+    function backToMap() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      if (window.MathMemo) MathMemo.close();
+      document.getElementById('stage-screen').style.display = 'none';
+      document.getElementById('map-screen').style.display = 'block';
+      renderMap();
+      window.scrollTo(0, 0);
+    }
+
+    /* ════════════════ 初期化 ════════════════ */
+
+    (function init() {
+      const el = ansInput();
+      el.addEventListener('input', e => { if (!e.isComposing) applyInputFilter(); });
+      el.addEventListener('compositionend', applyInputFilter);
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); checkInput(); } });
+      if (window.MathMemo) MathMemo.attach({ btnId: 'memo-toggle', boxId: 'memo-box' });
+      renderMap();
+    })();
+  </script>
+</body>
+</html>
